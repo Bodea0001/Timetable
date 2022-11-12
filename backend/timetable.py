@@ -143,7 +143,6 @@ def add_user(user: User):
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 async def process_register(form_data: OAuth2PasswordRequestFormUpdate = Depends()):
     email = form_data.username
-    print(email, is_email_valid(email))
     if not is_email_valid(email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

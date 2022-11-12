@@ -10,6 +10,8 @@
 4. You need to download **Postgresql**
 5. You need to declare environment varialbes so that they appear in **config.py**.
 6. You need to run **models.py** to create models in the database.
+   <br>
    `python models.py`
 7. Now you can start the project
+   <br>
    `uvicorn index:app --reload`

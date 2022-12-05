@@ -1,6 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from fastapi import Form
 from fastapi.security import OAuth2PasswordRequestForm
+from datetime import datetime, time
+from enum import Enum
+
 
 class Token(BaseModel):
     access_token: str
@@ -9,6 +12,132 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str
+
+
+class UserBase(BaseModel):
+    email: EmailStr
+    first_name: str
+    last_name: str
+
+
+class UserOut(UserBase):
+    id: int
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: int
+    registry_date: datetime
+    tg_username: str | None = None
+
+    class Config:
+        orm_mode = True
+
+
+class University(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        orm_mode = True
+
+
+class Specialization(BaseModel):
+    id: int
+    code: str
+    name: str
+
+    class Config:
+        orm_mode = True
+
+
+class TaskStatusesEnum(str, Enum):
+    in_progress = "В процессе"
+    complited = "Завершено"
+    overdue = "Просрочено"
+
+
+class TaskStatuses(BaseModel):
+    id: int
+    id_task: int
+    id_user: int
+    status: TaskStatusesEnum
+
+
+class Task(BaseModel):
+    id: int
+    description: str
+    time: datetime
+    statuses: list[TaskStatuses]
+
+    class Config:
+        orm_mode = True
+
+
+class Day(str, Enum):
+    monday = "Понедельник"
+    tuesday = "Вторник"
+    wednesday = "Среда"
+    thursday = "Четверг"
+    friday = "Пятница"
+    saturday = "Суббота"
+    sunday = "Воскресенье"
+
+
+class Week(BaseModel):
+    id: int
+    subject: str
+    day: Day
+    start_time: time
+    end_time: time
+
+    class Config:
+        orm_mode = True
+
+
+class Upper_week(Week):
+
+    class Config:
+        orm_mode = True
+
+
+class Lower_week(Week):
+    
+    class Config:
+        orm_mode = True
+
+
+class Education_level(str, Enum):
+    undergraduate = "Бакалавриат"
+    magistracy = "Магистратура"
+    specialty = "Специалитет"
+    postgraduate = "Аспирантура"
+
+
+class TimetableStatuses(str, Enum):
+    admin = "админ"
+    elder = "староста"
+    user = "пользователь"
+
+
+class Timetable:
+    id: int
+    id_university: int
+    id_specialization: int
+    education_level: Education_level
+    course: int
+    id_user: int
+    status: TimetableStatuses
+
+    upper_week_items: list[Upper_week]
+    lower_week_items: list[Lower_week]
+    tasks: list[Task]
+
+    class Config:
+        orm_mode = True 
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):

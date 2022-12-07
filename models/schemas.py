@@ -125,6 +125,7 @@ class TimetableStatuses(str, Enum):
 
 class Timetable:
     id: int
+    name: str
     id_university: int
     id_specialization: int
     education_level: Education_level

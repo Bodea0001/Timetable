@@ -98,13 +98,13 @@ class Week(BaseModel):
         orm_mode = True
 
 
-class Upper_week(Week):
+class UpperWeek(Week):
 
     class Config:
         orm_mode = True
 
 
-class Lower_week(Week):
+class LowerWeek(Week):
     
     class Config:
         orm_mode = True
@@ -132,8 +132,8 @@ class Timetable:
     id_user: int
     status: TimetableStatuses
 
-    upper_week_items: list[Upper_week]
-    lower_week_items: list[Lower_week]
+    upper_week_items: list[UpperWeek]
+    lower_week_items: list[LowerWeek]
     tasks: list[Task]
 
     class Config:

@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Date, Time, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime, date, time
+from datetime import datetime
 
-from database import Base, engine
+from sql.database import Base, engine
 
 
 class User(Base):  # type: ignore
@@ -36,9 +36,11 @@ class Task(Base): # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id"))
     description = Column(Text, nullable=False)
-    time = Column(DateTime, nullable=False)
-    statuses = relationship("task_statuses")
+    deadline = Column(DateTime, nullable=False)
+
+    statuses = relationship("TaskStatuses", back_populates="owner")
 
 
 class TaskStatuses(Base): # type: ignore
@@ -49,21 +51,25 @@ class TaskStatuses(Base): # type: ignore
     id_user = Column(ForeignKey("user.id"))
     status = Column(String, nullable=False)
 
+    owner = relationship("Task", back_populates="statuses")
 
-class Upper_week(Base): # type: ignore
+
+class UpperWeek(Base): # type: ignore
     __tablename__ = "upper_week"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id"))
     subject = Column(String(150), nullable=False)
     day = Column(String, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
 
 
-class Lower_week(Base): # type: ignore
+class LowerWeek(Base): # type: ignore
     __tablename__ = "lower_week"
 
     id = Column(Integer, primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id"))
     subject = Column(String(150), nullable=False)
     day = Column(String, nullable=False)
     start_time = Column(Time, nullable=False)
@@ -81,8 +87,8 @@ class Timetable(Base): # type: ignore
     id_user = Column(ForeignKey("user.id"))
     status = Column(String(50))
 
-    upper_week_items = relationship("Upper_week")
-    lower_week_items = relationship("Lower_week")
+    upper_week_items = relationship("UpperWeek")
+    lower_week_items = relationship("LowerWeek")
     tasks = relationship("Task")
 
 

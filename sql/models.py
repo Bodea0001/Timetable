@@ -80,6 +80,7 @@ class Timetable(Base): # type: ignore
     __tablename__ = "timetable"
 
     id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
     id_university = Column(ForeignKey("university.id"))
     id_spesialization = Column(ForeignKey("specialization.id"))
     education_level = Column(String(50), nullable=False)

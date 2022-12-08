@@ -60,21 +60,32 @@ class TaskStatusesEnum(str, Enum):
     overdue = "Просрочено"
 
 
-class TaskStatuses(BaseModel):
-    id: int
-    id_task: int
+class TaskStatusesBase(BaseModel):
     id_user: int
     status: TaskStatusesEnum
 
 
-class Task(BaseModel):
+class TaskStatuses(TaskStatusesBase):
     id: int
+    id_task: int
+
+
+class TaskBase(BaseModel):
     description: str
-    time: datetime
-    statuses: list[TaskStatuses]
+    deadline: datetime
+    subject: str | None = None
 
     class Config:
         orm_mode = True
+
+
+class TaskOut(TaskBase):
+    statuses: list[TaskStatusesBase]
+
+
+class Task(TaskBase):
+    id: int
+    statuses: list[TaskStatuses]
 
 
 class Day(str, Enum):
@@ -87,10 +98,20 @@ class Day(str, Enum):
     sunday = "Воскресенье"
 
 
-class Week(BaseModel):
-    id: int
-    subject: str
+class WeekBase(BaseModel):
     day: Day
+
+    class Config:
+        orm_mode = True
+
+
+class Week(WeekBase):
+    id: int
+    id_timetable: int
+
+
+class DaySubjectsBase(BaseModel):
+    subject: str
     start_time: time
     end_time: time
 
@@ -98,16 +119,36 @@ class Week(BaseModel):
         orm_mode = True
 
 
-class UpperWeek(Week):
+class DaySubjectsOut(DaySubjectsBase):
+    pass
 
-    class Config:
-        orm_mode = True
+
+class UpperWeekOut(WeekBase):
+    subjects: list[DaySubjectsOut]
+
+
+class LowerWeekOut(WeekBase):
+    subjects: list[DaySubjectsOut]
+
+
+class DaySubjects(DaySubjectsBase):
+    id: int
+
+
+class UpperDaySubjects(DaySubjects):
+    id_upper_week: int
+
+
+class UpperWeek(Week):
+    subjects: list[UpperDaySubjects]
+
+
+class LowerDaySubjects(DaySubjects):
+    id_lower_week: int
 
 
 class LowerWeek(Week):
-    
-    class Config:
-        orm_mode = True
+    subjects: list[LowerDaySubjects]
 
 
 class Education_level(str, Enum):
@@ -117,28 +158,48 @@ class Education_level(str, Enum):
     postgraduate = "Аспирантура"
 
 
-class TimetableStatuses(str, Enum):
-    admin = "админ"
-    elder = "староста"
-    user = "пользователь"
-
-
-class Timetable:
-    id: int
+class TimetableBase(BaseModel):
     name: str
-    id_university: int
-    id_specialization: int
     education_level: Education_level
     course: int
     id_user: int
+
+    class Config:
+        orm_mode = True 
+
+
+class TimetableStatuses(str, Enum):
+    elder = "староста"
+    user = "пользователь"   
+
+
+class TimetableCreate(TimetableBase):
+    id_university: int
+    id_specialization: int
+    status: TimetableStatuses
+
+
+class TimetableOut(TimetableBase):
+    university: str
+    specialization_name: str
+    specialization_code: str
+    status: TimetableStatuses
+
+    upper_week_items: list[UpperWeekOut]
+    lower_week_items: list[LowerWeekOut]
+    tasks: list[TaskOut]
+
+
+
+class Timetable(TimetableBase):
+    id: int
+    id_university: int
+    id_specialization: int
     status: TimetableStatuses
 
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
     tasks: list[Task]
-
-    class Config:
-        orm_mode = True 
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
@@ -163,3 +224,23 @@ class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
         )
         self.first_name = first_name
         self.last_name = last_name
+
+
+class TimetableRequestForm:
+    def __init__(
+        self,
+        name: str = Form(),
+        university: str = Form(),
+        specialization_name: str | None= Form(default=None),
+        specialization_code: str | None = Form(default=None),
+        education_level: Education_level = Form(),
+        course: int = Form(ge=1, le=5),
+        status: TimetableStatuses | None = Form(default=None)
+    ):
+        self.name = name
+        self.university = university
+        self.specialization_name = specialization_name
+        self.specialization_code = specialization_code
+        self.education_level = education_level
+        self.course = course
+        self.status = status

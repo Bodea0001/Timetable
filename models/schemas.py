@@ -14,29 +14,6 @@ class TokenData(BaseModel):
     username: str
 
 
-class UserBase(BaseModel):
-    email: EmailStr
-    first_name: str
-    last_name: str
-
-
-class UserOut(UserBase):
-    id: int
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
-    id: int
-    registry_date: datetime
-    tg_username: str | None = None
-
-    class Config:
-        orm_mode = True
-
-
 class University(BaseModel):
     id: int
     name: str
@@ -179,12 +156,14 @@ class TimetableCreate(TimetableBase):
     status: TimetableStatuses
 
 
-class TimetableOut(TimetableBase):
+class TimetableOutLite(TimetableBase):
     university: str
     specialization_name: str
     specialization_code: str
     status: TimetableStatuses
 
+
+class TimetableOut(TimetableOutLite):
     upper_week_items: list[UpperWeekOut]
     lower_week_items: list[LowerWeekOut]
     tasks: list[TaskOut]
@@ -200,6 +179,30 @@ class Timetable(TimetableBase):
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
     tasks: list[Task]
+
+
+class UserBase(BaseModel):
+    email: EmailStr
+    first_name: str
+    last_name: str
+
+    class Config:
+        orm_mode = True
+
+
+class UserOut(UserBase):
+    id: int
+    timetalbes_info: list[Timetable]
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: int
+    registry_date: datetime
+    tg_username: str | None = None
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):

@@ -57,7 +57,6 @@ class Specialization(BaseModel):
 class TaskStatusesEnum(str, Enum):
     in_progress = "В процессе"
     complited = "Завершено"
-    overdue = "Просрочено"
 
 
 class TaskStatusesBase(BaseModel):
@@ -70,7 +69,9 @@ class TaskStatuses(TaskStatusesBase):
     id_task: int
 
 
+# Task Base Nodel
 class TaskBase(BaseModel):
+    timetable_id: int
     description: str
     deadline: datetime
     subject: str | None = None
@@ -79,6 +80,7 @@ class TaskBase(BaseModel):
         orm_mode = True
 
 
+# Task Out Model inherit from TaskBase
 class TaskOut(TaskBase):
     statuses: list[TaskStatusesBase]
 
@@ -188,7 +190,6 @@ class TimetableOut(TimetableBase):
     upper_week_items: list[UpperWeekOut]
     lower_week_items: list[LowerWeekOut]
     tasks: list[TaskOut]
-
 
 
 class Timetable(TimetableBase):

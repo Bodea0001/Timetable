@@ -32,7 +32,7 @@ class Specialization(Base): # type: ignore
     name = Column(String, nullable=False)
 
 
-class Task(Base): # type: ignore
+class Task(Base):  # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -45,7 +45,7 @@ class Task(Base): # type: ignore
     owner = relationship("Timetable", back_populates="tasks")
 
 
-class TaskStatuses(Base): # type: ignore
+class TaskStatuses(Base):  # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -100,7 +100,7 @@ class LowerDaySubjects(Base): # type: ignore
     owner = relationship("LowerWeek", back_populates="subjects")
 
 
-class Timetable(Base): # type: ignore
+class Timetable(Base):  # type: ignore
     __tablename__ = "timetable"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -109,7 +109,7 @@ class Timetable(Base): # type: ignore
     id_speсialization = Column(ForeignKey("specialization.id"), nullable=False)
     education_level = Column(String(50), nullable=False)
     course = Column(Integer, nullable=False)
-    id_user = Column(ForeignKey("user.id"), nullablse=False)
+    id_user = Column(ForeignKey("user.id"))
     status = Column(String(50), nullable=False)
 
     upper_week_items = relationship("UpperWeek", back_populates="owner")

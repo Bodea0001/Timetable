@@ -1,3 +1,4 @@
+import sys
 from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -137,4 +138,7 @@ def drop_tables():
     
 
 if __name__=="__main__":
-    create_db_and_tables()
+    if sys.argv[1] == 'createdb':
+        create_db_and_tables()
+    elif sys.argv[1] == 'dropdb':
+        drop_tables()

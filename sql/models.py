@@ -1,3 +1,4 @@
+import sys
 from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -32,10 +33,10 @@ class Specialization(Base): # type: ignore
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), nullable=False)
     name = Column(String, nullable=False)
-    education_level = Column(String(30), nullable=False)
+    education_level = Column(String(50), nullable=False)
 
 
-class Task(Base):  # type: ignore
+class Task(Base): # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -48,7 +49,7 @@ class Task(Base):  # type: ignore
     owner = relationship("Timetable", back_populates="tasks")
 
 
-class TaskStatuses(Base):  # type: ignore
+class TaskStatuses(Base): # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -103,21 +104,20 @@ class LowerDaySubjects(Base): # type: ignore
     owner = relationship("LowerWeek", back_populates="subjects")
 
 
-class Timetable(Base):  # type: ignore
+class Timetable(Base): # type: ignore
     __tablename__ = "timetable"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False)
     id_university = Column(ForeignKey("university.id"), nullable=False)
     id_speсialization = Column(ForeignKey("specialization.id"), nullable=False)
-    education_level = Column(String(50), nullable=False)
     course = Column(Integer, nullable=False)
     id_user = Column(ForeignKey("user.id"))
 
     upper_week_items = relationship("UpperWeek", back_populates="owner")
     lower_week_items = relationship("LowerWeek", back_populates="owner")
     tasks = relationship("Task", back_populates="owner")
-    users_info = relationship("User", secondary="timetable_user", back_populates="timetable_info")
+    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info")
 
 
 class  TimetableUser(Base):  #type: ignore
@@ -126,7 +126,6 @@ class  TimetableUser(Base):  #type: ignore
     id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
     id_timetable = Column(ForeignKey("timetable.id"), primary_key=True, index=True)
     status = Column(String(50), nullable=False)
-
 
 
 def create_db_and_tables():
@@ -138,4 +137,7 @@ def drop_tables():
     
 
 if __name__=="__main__":
-    create_db_and_tables()
+    if sys.argv[1] == 'createdb':
+        create_db_and_tables()
+    elif sys.argv[1] == 'dropdb':
+        drop_tables()

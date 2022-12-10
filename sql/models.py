@@ -32,6 +32,7 @@ class Specialization(Base): # type: ignore
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), nullable=False)
     name = Column(String, nullable=False)
+    education_level = Column(String(30), nullable=False)
 
 
 class Task(Base): # type: ignore

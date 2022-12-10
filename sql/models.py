@@ -35,7 +35,7 @@ class Specialization(Base): # type: ignore
     education_level = Column(String(30), nullable=False)
 
 
-class Task(Base): # type: ignore
+class Task(Base):  # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -48,7 +48,7 @@ class Task(Base): # type: ignore
     owner = relationship("Timetable", back_populates="tasks")
 
 
-class TaskStatuses(Base): # type: ignore
+class TaskStatuses(Base):  # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -103,7 +103,7 @@ class LowerDaySubjects(Base): # type: ignore
     owner = relationship("LowerWeek", back_populates="subjects")
 
 
-class Timetable(Base): # type: ignore
+class Timetable(Base):  # type: ignore
     __tablename__ = "timetable"
 
     id = Column(Integer, primary_key=True, index=True)

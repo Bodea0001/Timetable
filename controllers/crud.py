@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
 
-from sql_app.models import User, engine
+from sql.models import User, engine, Task
 
 
 def get_user(username: str):
@@ -14,4 +14,10 @@ def get_user(username: str):
 def create_user(user: User):
     with Session(engine) as session:
         session.add(user)
+        session.commit()
+
+
+def create_task(task: Task):
+    with Session(engine) as session:
+        session.add(task)
         session.commit()

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -15,6 +15,8 @@ class User(Base):  # type: ignore
     last_name = Column(String(150), nullable=False)
     registry_date = Column(DateTime, default=datetime.utcnow())
     tg_username = Column(String)
+
+    timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
 
 
 class University(Base): # type: ignore
@@ -109,12 +111,21 @@ class Timetable(Base): # type: ignore
     id_speсialization = Column(ForeignKey("specialization.id"), nullable=False)
     education_level = Column(String(50), nullable=False)
     course = Column(Integer, nullable=False)
-    id_user = Column(ForeignKey("user.id"), nullablse=False)
-    status = Column(String(50), nullable=False)
+    id_user = Column(ForeignKey("user.id"))
 
     upper_week_items = relationship("UpperWeek", back_populates="owner")
     lower_week_items = relationship("LowerWeek", back_populates="owner")
     tasks = relationship("Task", back_populates="owner")
+    users_info = relationship("User", secondary="timetable_user", back_populates="timetable_info")
+
+
+class  TimetableUser(Base):  #type: ignore
+    __tablename__ = "timetable_user"
+
+    id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id"), primary_key=True, index=True)
+    status = Column(String(50), nullable=False)
+
 
 
 def create_db_and_tables():

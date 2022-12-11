@@ -18,3 +18,8 @@ async def create_task(task: schemas.TaskBase, db: Session = Depends(get_db)):
 @router.get('/task/subject', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def get_task_by_subject(subject: str, id_timetable: int, db: Session = Depends(get_db)):
     return getTaskBySubject(subject, id_timetable, db)
+
+
+@router.get('/task', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
+async def get_task(subject: str, db: Session = Depends(get_db)):
+    return 1

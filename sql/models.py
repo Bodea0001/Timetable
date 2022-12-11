@@ -20,14 +20,14 @@ class User(Base):  # type: ignore
     timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
 
 
-class University(Base): # type: ignore
+class University(Base):  # type: ignore
     __tablename__ = "university"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
 
 
-class Specialization(Base): # type: ignore
+class Specialization(Base):  # type: ignore
     __tablename__ = "specialization"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -36,7 +36,7 @@ class Specialization(Base): # type: ignore
     education_level = Column(String(50), nullable=False)
 
 
-class Task(Base): # type: ignore
+class Task(Base):  # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -49,7 +49,7 @@ class Task(Base): # type: ignore
     owner = relationship("Timetable", back_populates="tasks")
 
 
-class TaskStatuses(Base): # type: ignore
+class TaskStatuses(Base):  # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -60,7 +60,7 @@ class TaskStatuses(Base): # type: ignore
     owner = relationship("Task", back_populates="statuses")
 
 
-class UpperWeek(Base): # type: ignore
+class UpperWeek(Base):  # type: ignore
     __tablename__ = "upper_week"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -71,7 +71,7 @@ class UpperWeek(Base): # type: ignore
     owner = relationship("Timetable", back_populates="upper_week_items")
 
 
-class UpperDaySubjects(Base): # type: ignore
+class UpperDaySubjects(Base):  # type: ignore
     __tablename__ = "upper_day_subjects"
     id = Column(Integer, primary_key=True, index=True)
     id_upper_week = Column(ForeignKey("upper_week.id"))
@@ -82,7 +82,7 @@ class UpperDaySubjects(Base): # type: ignore
     owner = relationship("UpperWeek", back_populates="subjects")
 
 
-class LowerWeek(Base): # type: ignore
+class LowerWeek(Base):  # type: ignore
     __tablename__ = "lower_week"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -93,7 +93,7 @@ class LowerWeek(Base): # type: ignore
     owner = relationship("Timetable", back_populates="lower_week_items")
 
 
-class LowerDaySubjects(Base): # type: ignore
+class LowerDaySubjects(Base):  # type: ignore
     __tablename__ = "lower_day_subjects"
     id = Column(Integer, primary_key=True, index=True)
     id_lower_week = Column(ForeignKey("lower_week.id"), nullable=False)
@@ -104,13 +104,13 @@ class LowerDaySubjects(Base): # type: ignore
     owner = relationship("LowerWeek", back_populates="subjects")
 
 
-class Timetable(Base): # type: ignore
+class Timetable(Base):  # type: ignore
     __tablename__ = "timetable"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False)
     id_university = Column(ForeignKey("university.id"), nullable=False)
-    id_speсialization = Column(ForeignKey("specialization.id"), nullable=False)
+    id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
     course = Column(Integer, nullable=False)
     id_user = Column(ForeignKey("user.id"))
 
@@ -120,7 +120,7 @@ class Timetable(Base): # type: ignore
     users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info")
 
 
-class  TimetableUser(Base):  #type: ignore
+class TimetableUser(Base):  # type: ignore
     __tablename__ = "timetable_user"
 
     id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
@@ -133,10 +133,10 @@ def create_db_and_tables():
 
 
 def drop_tables():
-    Base.metadata.drop_all(engine) # type: ignore
+    Base.metadata.drop_all(engine)  # type: ignore
     
 
-if __name__=="__main__":
+if __name__ == "__main__":
     if sys.argv[1] == 'createdb':
         create_db_and_tables()
     elif sys.argv[1] == 'dropdb':

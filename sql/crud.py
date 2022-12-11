@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from sql import models
 from models import schemas
@@ -33,3 +34,9 @@ def create_task(db: Session, task: schemas.TaskBase):
     db.commit()
     db.refresh(db_task)
     return db_task
+
+
+def get_task_by_subject(db: Session, id_timetable: int, subject: str):
+    result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
+                                                                                        id_timetable))
+    return result.scalars().all()

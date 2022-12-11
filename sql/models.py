@@ -31,8 +31,9 @@ class Specialization(Base): # type: ignore
     __tablename__ = "specialization"
 
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(50), nullable=False)
+    code = Column(String(50), nullable=False, unique=True)
     name = Column(String, nullable=False)
+    education_level = Column(String(20), nullable=False)
 
 
 class Task(Base): # type: ignore
@@ -44,8 +45,8 @@ class Task(Base): # type: ignore
     subject = Column(String(150))
     deadline = Column(DateTime, nullable=False)
 
-    statuses = relationship("TaskStatuses", back_populates="owner")
-    owner = relationship("Timetable", back_populates="tasks")
+    statuses = relationship("TaskStatuses")
+    # owner = relationship("Timetable", back_populates="tasks")
 
 
 class TaskStatuses(Base): # type: ignore
@@ -55,8 +56,7 @@ class TaskStatuses(Base): # type: ignore
     id_task = Column(ForeignKey("task.id"))
     id_user = Column(ForeignKey("user.id"))
     status = Column(String, nullable=False)
-
-    owner = relationship("Task", back_populates="statuses")
+    # owner = relationship("Task", back_populates="statuses")
 
 
 class UpperWeek(Base): # type: ignore
@@ -66,19 +66,20 @@ class UpperWeek(Base): # type: ignore
     id_timetable = Column(ForeignKey("timetable.id"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("UpperDaySubjects", back_populates="owner")
-    owner = relationship("Timetable", back_populates="upper_week_items")
+    subjects = relationship("UpperDaySubjects")
+    # owner = relationship("Timetable", back_populates="upper_week_items")
 
 
 class UpperDaySubjects(Base): # type: ignore
     __tablename__ = "upper_day_subjects"
+    
     id = Column(Integer, primary_key=True, index=True)
     id_upper_week = Column(ForeignKey("upper_week.id"))
     subject = Column(String(150), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
 
-    owner = relationship("UpperWeek", back_populates="subjects")
+    # owner = relationship("UpperWeek", back_populates="subjects")
 
 
 class LowerWeek(Base): # type: ignore
@@ -88,8 +89,8 @@ class LowerWeek(Base): # type: ignore
     id_timetable = Column(ForeignKey("timetable.id"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("LowerDaySubjects", back_populates="owner")
-    owner = relationship("Timetable", back_populates="lower_week_items")
+    subjects = relationship("LowerDaySubjects")
+    # owner = relationship("Timetable", back_populates="lower_week_items")
 
 
 class LowerDaySubjects(Base): # type: ignore
@@ -100,7 +101,7 @@ class LowerDaySubjects(Base): # type: ignore
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
 
-    owner = relationship("LowerWeek", back_populates="subjects")
+    # owner = relationship("LowerWeek", back_populates="subjects")
 
 
 class Timetable(Base): # type: ignore
@@ -109,15 +110,13 @@ class Timetable(Base): # type: ignore
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False)
     id_university = Column(ForeignKey("university.id"), nullable=False)
-    id_speсialization = Column(ForeignKey("specialization.id"), nullable=False)
-    education_level = Column(String(50), nullable=False)
+    id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
     course = Column(Integer, nullable=False)
-    id_user = Column(ForeignKey("user.id"))
 
-    upper_week_items = relationship("UpperWeek", back_populates="owner")
-    lower_week_items = relationship("LowerWeek", back_populates="owner")
-    tasks = relationship("Task", back_populates="owner")
-    users_info = relationship("User", secondary="timetable_user", back_populates="timetable_info")
+    upper_week_items = relationship("UpperWeek")
+    lower_week_items = relationship("LowerWeek")
+    tasks = relationship("Task")
+    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info")
 
 
 class  TimetableUser(Base):  #type: ignore

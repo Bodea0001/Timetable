@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from models import schemas
-from sql.crud import create_task, get_task_by_subject
+from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table
 
 
 def addTask(task: schemas.TaskBase, db: Session):
@@ -12,3 +12,7 @@ def addTask(task: schemas.TaskBase, db: Session):
 
 def getTaskBySubject(subject: str, id_timetable: int, db: Session):
     return get_task_by_subject(db, id_timetable, subject)
+
+
+def getAllTaskInTable(id_timetable: int, db: Session):
+    get_all_tasks_in_table(db, id_timetable)

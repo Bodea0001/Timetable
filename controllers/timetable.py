@@ -73,7 +73,6 @@ def get_current_timetable(db: Session, name: str, user_id: int | Column[Integer]
         )
     return get_valid_timetable(db, db_timetable)
 
-    
 
 def get_valid_timetable(db: Session, db_timetable: models.Timetable) -> schemas.TimetableOut:
     university = get_university_by_id(db, db_timetable.id_university)  # type: ignore
@@ -90,6 +89,14 @@ def get_valid_timetable(db: Session, db_timetable: models.Timetable) -> schemas.
             detail="The specialization was not found, change the specialization from the timetable"
         )
 
+    return validate_timetable(db_timetable, university, specialization)
+  
+
+def validate_timetable(
+    db_timetable: models.Timetable,
+    university: models.University,
+    specialization: models.Specialization
+    ) -> schemas.TimetableOut:
     return schemas.TimetableOut(
         id=db_timetable.id, # type: ignore
         name=db_timetable.name, # type: ignore

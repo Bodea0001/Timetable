@@ -45,3 +45,9 @@ def get_task_by_subject(db: Session, id_timetable: int, subject: str):
 def get_all_tasks_in_table(db: Session, id_timetable: int):
     result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
     return result.scalars().all()
+
+
+def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
+    db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
+    db.commit()
+    return 'Task deleted successfully'

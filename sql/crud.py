@@ -1,11 +1,11 @@
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Session
 
 from sql import models
 from models import schemas
 
 
-def get_user(db: Session, username: str) -> models.User | None:
+def get_user(db: Session, username: str | Column[String]) -> models.User | None:
     return db.query(models.User).filter(models.User.email == username).first()
 
 
@@ -22,23 +22,37 @@ def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     return db_user
 
 
-def get_timetable(db: Session, user_id: int | Column[Integer], timetable_name: str) -> models.Timetable | None:
-    return db.query(models.Timetable).filter(models.Timetable.id_user == user_id, models.Timetable.name == timetable_name).first()
+def get_timetable_by_name_and_user_id(
+    db: Session,
+    timetable_name: str | Column[String],
+    user_id: int | Column[Integer],
+    ) -> models.Timetable | None:
+    return db.query(models.Timetable).join(
+        models.TimetableUser,
+        models.TimetableUser.id_user == user_id
+        ).filter(models.Timetable.name == timetable_name).first()
 
-
-def get_timetables_by_user_id(db: Session, user_id: int) -> list[models.Timetable] | None:
-    return db.query(models.Timetable).filter(models.Timetable.id_user == user_id).all()
+def get_timetable_by_name_university_id_specialization_id_course(
+    db: Session,
+    name: str | Column[String],
+    university_id: int | Column[Integer],
+    specialization_id: int | Column[Integer],
+    course: int | Column[Integer],
+    ) -> models.Timetable | None:
+    return db.query(models.Timetable).filter(
+        models.Timetable.name == name,
+        models.Timetable.id_university == university_id,
+        models.Timetable.id_specialization == specialization_id,
+        models.Timetable.course == course
+    ).first()
 
 
 def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.Timetable:
     db_timetable = models.Timetable(
         name = timetable.name,
         id_university = timetable.id_university,
-        id_speсialization = timetable.id_specialization,
-        education_level = timetable.education_level,
+        id_specialization = timetable.id_specialization,
         course = timetable.course,
-        id_user = timetable.id_user,
-        status = timetable.status
     )
     db.add(db_timetable)
     db.commit()
@@ -46,36 +60,44 @@ def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.
     return db_timetable
 
 
-def get_university(db: Session, university_name: str) -> models.University | None:
+def create_timetable_user(db: Session, timetable_user_relation: schemas.TimetableUser):
+    db_timetable_user_relation = models.TimetableUser(
+        id_user = timetable_user_relation.id_user,
+        id_timetable = timetable_user_relation.id_timetable,
+        status = timetable_user_relation.status
+    )
+    db.add(db_timetable_user_relation)
+    db.commit()
+
+
+def get_university(db: Session, university_name: str | Column[String]) -> models.University | None:
     return db.query(models.University).filter(models.University.name == university_name).first()
 
 
-def get_university_by_id(db: Session, university_id: int) -> models.University | None:
+def get_university_by_id(db: Session, university_id: int | Column[Integer]) -> models.University | None:
     return db.query(models.University).filter(models.University.id == university_id).first()
 
 
-def get_specialization_by_name(db: Session, specialization_name: str) -> models.Specialization | None:
-    return db.query(models.Specialization).filter(models.Specialization.name == specialization_name).first()
-
-
-def get_specialization_by_code(db: Session, specialization_code: str) -> models.Specialization | None:
-    return db.query(models.Specialization).filter(models.Specialization.code == specialization_code).first()
-
-
-def get_specialization_by_id(db: Session, specialization_id: int) -> models.Specialization | None:
-    return db.query(models.Specialization).filter(models.Specialization.id == specialization_id).first()
-
-
-def filter_timetablse(
+def get_specialization_by_name(
     db: Session,
-    name: str | models.Timetable,
-    university_id: int | models.Timetable,
-    specialization_id: int | models.Timetable,
-    course: int | models.Timetable
-    ) -> list[models.Timetable] | None:
-    return db.query(models.Timetable).filter(
-        models.Timetable.name == name,
-        models.Timetable.id_university == university_id,
-        models.Timetable.id_speсialization == specialization_id,
-        models.Timetable.course == course
-        ).all()
+    specialization_name: str | Column[String],
+    education_level: schemas.Education_level
+    ) -> models.Specialization | None:
+    return db.query(models.Specialization).filter(
+        models.Specialization.name == specialization_name,
+        models.Specialization.education_level == education_level,
+        ).first()
+
+
+def get_specialization_by_code(
+    db: Session,
+    specialization_code: str | Column[String],
+    education_level: schemas.Education_level) -> models.Specialization | None:
+    return db.query(models.Specialization).filter(
+        models.Specialization.code == specialization_code,
+        models.Specialization.education_level == education_level
+        ).first()
+
+
+def get_specialization_by_id(db: Session, specialization_id: int | Column[Integer]) -> models.Specialization | None:
+    return db.query(models.Specialization).filter(models.Specialization.id == specialization_id).first()

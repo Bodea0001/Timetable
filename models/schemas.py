@@ -22,10 +22,17 @@ class University(BaseModel):
         orm_mode = True
 
 
+class Education_level(str, Enum):
+    undergraduate = "Бакалавриат"
+    magistracy = "Магистратура"
+    specialty = "Специалитет"
+
+
 class Specialization(BaseModel):
     id: int
     code: str
     name: str
+    education_level: Education_level
 
     class Config:
         orm_mode = True
@@ -38,19 +45,20 @@ class TaskStatusesEnum(str, Enum):
 
 
 class TaskStatusesBase(BaseModel):
+    id: int
     id_user: int
     status: TaskStatusesEnum
 
 
 class TaskStatuses(TaskStatusesBase):
-    id: int
     id_task: int
 
 
 class TaskBase(BaseModel):
+    id: int
     description: str
     deadline: datetime
-    subject: str | None = None
+    subject: str
 
     class Config:
         orm_mode = True
@@ -61,7 +69,7 @@ class TaskOut(TaskBase):
 
 
 class Task(TaskBase):
-    id: int
+    id_timetable: int
     statuses: list[TaskStatuses]
 
 
@@ -76,6 +84,7 @@ class Day(str, Enum):
 
 
 class WeekBase(BaseModel):
+    id: int
     day: Day
 
     class Config:
@@ -83,11 +92,11 @@ class WeekBase(BaseModel):
 
 
 class Week(WeekBase):
-    id: int
     id_timetable: int
 
 
-class DaySubjectsBase(BaseModel):
+class DaySubjects(BaseModel):
+    id: int
     subject: str
     start_time: time
     end_time: time
@@ -96,20 +105,12 @@ class DaySubjectsBase(BaseModel):
         orm_mode = True
 
 
-class DaySubjectsOut(DaySubjectsBase):
-    pass
-
-
 class UpperWeekOut(WeekBase):
-    subjects: list[DaySubjectsOut]
+    subjects: list[DaySubjects]
 
 
 class LowerWeekOut(WeekBase):
-    subjects: list[DaySubjectsOut]
-
-
-class DaySubjects(DaySubjectsBase):
-    id: int
+    subjects: list[DaySubjects]
 
 
 class UpperDaySubjects(DaySubjects):
@@ -128,45 +129,33 @@ class LowerWeek(Week):
     subjects: list[LowerDaySubjects]
 
 
-class Education_level(str, Enum):
-    undergraduate = "Бакалавриат"
-    magistracy = "Магистратура"
-    specialty = "Специалитет"
-    postgraduate = "Аспирантура"
-
-
 class TimetableBase(BaseModel):
     name: str
-    education_level: Education_level
     course: int
-    id_user: int
 
     class Config:
         orm_mode = True 
 
 
-class TimetableStatuses(str, Enum):
-    elder = "староста"
-    user = "пользователь"   
-
-
 class TimetableCreate(TimetableBase):
     id_university: int
     id_specialization: int
-    status: TimetableStatuses
 
 
 class TimetableOutLite(TimetableBase):
+    id: int
     university: str
     specialization_name: str
     specialization_code: str
-    status: TimetableStatuses
+    education_level: Education_level
 
 
 class TimetableOut(TimetableOutLite):
-    upper_week_items: list[UpperWeekOut]
-    lower_week_items: list[LowerWeekOut]
-    tasks: list[TaskOut]
+    id: int
+    
+    upper_week_items: list[UpperWeek]
+    lower_week_items: list[LowerWeek]
+    tasks: list[Task]
 
 
 
@@ -174,11 +163,21 @@ class Timetable(TimetableBase):
     id: int
     id_university: int
     id_specialization: int
-    status: TimetableStatuses
 
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
     tasks: list[Task]
+
+
+class TimetableUserStatuses(str, Enum):
+    elder = "староста"
+    user = "пользователь"   
+
+
+class TimetableUser(BaseModel):
+    id_user: int
+    id_timetable: int
+    status: TimetableUserStatuses
 
 
 class UserBase(BaseModel):
@@ -190,9 +189,14 @@ class UserBase(BaseModel):
         orm_mode = True
 
 
+class UserOutLite(UserBase):
+    id: int
+    timetables_info: list[TimetableOutLite]
+
+
 class UserOut(UserBase):
     id: int
-    timetalbes_info: list[Timetable]
+    timetables_info: list[TimetableOut]
 
 
 class UserCreate(UserBase):
@@ -203,6 +207,7 @@ class User(UserBase):
     id: int
     registry_date: datetime
     tg_username: str | None = None
+    timetables_info: list[Timetable]
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
@@ -237,8 +242,7 @@ class TimetableRequestForm:
         specialization_name: str | None= Form(default=None),
         specialization_code: str | None = Form(default=None),
         education_level: Education_level = Form(),
-        course: int = Form(ge=1, le=5),
-        status: TimetableStatuses | None = Form(default=None)
+        course: int = Form(ge=1, le=5)
     ):
         self.name = name
         self.university = university
@@ -246,4 +250,3 @@ class TimetableRequestForm:
         self.specialization_code = specialization_code
         self.education_level = education_level
         self.course = course
-        self.status = status

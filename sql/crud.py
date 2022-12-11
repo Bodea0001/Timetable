@@ -40,3 +40,8 @@ def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
                                                                                         id_timetable))
     return result.scalars().all()
+
+
+def get_all_tasks_in_table(db: Session, id_timetable: int):
+    result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
+    return result.scalars().all()

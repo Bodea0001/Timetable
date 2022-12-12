@@ -36,7 +36,6 @@ def create_task(db: Session, task: schemas.TaskBase):
     return db_task
 
 
-<<<<<<< HEAD
 def get_timetable_by_name_and_user_id(
     db: Session,
     timetable_name: str | Column[String],
@@ -116,7 +115,6 @@ def get_specialization_by_code(
 
 def get_specialization_by_id(db: Session, specialization_id: int | Column[Integer]) -> models.Specialization | None:
     return db.query(models.Specialization).filter(models.Specialization.id == specialization_id).first()
-=======
 def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
                                                                                         id_timetable))
@@ -132,4 +130,3 @@ def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
     db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
     db.commit()
     return 'Task deleted successfully'
->>>>>>> onefallden

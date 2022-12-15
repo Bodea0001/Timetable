@@ -46,6 +46,12 @@ def get_timetable_by_name_and_user_id(
         models.TimetableUser.id_user == user_id
         ).filter(models.Timetable.name == timetable_name).first()
 
+
+def get_timetable_byid(db: Session, timetable_id):
+    result = db.execute(select(models.Timetable).where(models.Timetable.id == timetable_id))
+    return result.scalars().all()
+
+
 def get_timetable_by_name_university_id_specialization_id_course(
     db: Session,
     name: str | Column[String],

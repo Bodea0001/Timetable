@@ -20,7 +20,7 @@ router = APIRouter()
 async def read_user(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     db_timetables = user.timetables_info
     timetables = [get_valid_timetable(db, db_timetable) for db_timetable in db_timetables]  # type: ignore
-    return schemas.UserOut(
+    return schemas.UserOutLite(
         id=user.id, # type: ignore
         email=user.email, # type: ignore 
         first_name=user.first_name, # type: ignore

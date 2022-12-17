@@ -85,7 +85,6 @@ class Day(str, Enum):
 
 
 class WeekBase(BaseModel):
-    id: int
     day: Day
 
     class Config:
@@ -93,11 +92,11 @@ class WeekBase(BaseModel):
 
 
 class Week(WeekBase):
+    id: int
     id_timetable: int
 
 
-class DaySubjects(BaseModel):
-    id: int
+class DaySubjectsBase(BaseModel):
     subject: str
     start_time: time
     end_time: time
@@ -106,11 +105,15 @@ class DaySubjects(BaseModel):
         orm_mode = True
 
 
-class UpperWeekOut(WeekBase):
-    subjects: list[DaySubjects]
+class DaySubjects(DaySubjectsBase):
+    id: int
 
 
-class LowerWeekOut(WeekBase):
+class WeekCreate(WeekBase):
+    subjects: list[DaySubjectsBase]
+
+
+class WeekOut(Week):
     subjects: list[DaySubjects]
 
 

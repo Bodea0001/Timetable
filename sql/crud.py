@@ -115,6 +115,86 @@ def get_specialization_by_code(
 
 def get_specialization_by_id(db: Session, specialization_id: int | Column[Integer]) -> models.Specialization | None:
     return db.query(models.Specialization).filter(models.Specialization.id == specialization_id).first()
+
+
+def create_upper_weekly_timetable(
+    db: Session, 
+    timetable_id: int | Column[Integer], 
+    upper_weekly_timetable: list[schemas.WeekCreate]
+    ):
+    for upper_day_timetable in upper_weekly_timetable:
+        upper_week = create_upper_week(db, timetable_id, upper_day_timetable.day)
+        for upper_day_subject in upper_day_timetable.subjects:
+            create_upper_day_subject(db, upper_week.id, upper_day_subject)
+    
+
+def create_upper_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.UpperWeek:
+    db_upper_week = models.UpperWeek(
+        id_timetable = timetable_id,
+        day = day,
+    )
+    db.add(db_upper_week)
+    db.commit()
+    db.refresh(db_upper_week)
+    return db_upper_week
+
+
+def create_upper_day_subject(
+    db: Session,
+    upper_week_id: int | Column[Integer],
+    upper_day_subject: schemas.DaySubjectsBase
+    ) -> models.UpperDaySubjects:
+    db_upper_day_subject = models.UpperDaySubjects(
+        id_upper_week = upper_week_id,
+        subject = upper_day_subject.subject,
+        start_time = upper_day_subject.start_time,
+        end_time = upper_day_subject.end_time
+    )
+    db.add(db_upper_day_subject)
+    db.commit()
+    db.refresh(db_upper_day_subject)
+    return db_upper_day_subject
+
+
+def create_lower_weekly_timetable(
+    db: Session, 
+    timetable_id: int | Column[Integer], 
+    lower_weekly_timetable: list[schemas.WeekCreate]
+    ):
+    for lower_day_timetable in lower_weekly_timetable:
+        upper_week = create_lower_week(db, timetable_id, lower_day_timetable.day)
+        for lower_day_subject in lower_day_timetable.subjects:
+            create_lower_day_subject(db, upper_week.id, lower_day_subject)
+    
+
+def create_lower_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.LowerWeek:
+    db_lower_week = models.LowerWeek(
+        id_timetable = timetable_id,
+        day = day,
+    )
+    db.add(db_lower_week)
+    db.commit()
+    db.refresh(db_lower_week)
+    return db_lower_week
+
+
+def create_lower_day_subject(
+    db: Session,
+    lower_week_id: int | Column[Integer],
+    lower_day_subject: schemas.DaySubjectsBase
+    ) -> models.UpperDaySubjects:
+    db_lower_day_subject = models.LowerDaySubjects(
+        id_lower_week = lower_week_id,
+        subject = lower_day_subject.subject,
+        start_time = lower_day_subject.start_time,
+        end_time = lower_day_subject.end_time
+    )
+    db.add(db_lower_day_subject)
+    db.commit()
+    db.refresh(db_lower_day_subject)
+    return db_lower_day_subject
+
+
 def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
                                                                                         id_timetable))

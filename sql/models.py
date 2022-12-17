@@ -1,9 +1,13 @@
 import sys
 from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from sql.database import Base, engine
+from sql.database import engine
+
+
+Base = declarative_base()
 
 
 class User(Base):  # type: ignore

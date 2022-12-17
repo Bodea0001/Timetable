@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer
+
 from sql import models
 from sql.crud import (
     get_university,
@@ -11,7 +12,7 @@ from sql.crud import (
     get_specialization_by_id
     )
 from models import schemas
-
+from controllers.week import validate_upper_week_items, validate_lower_week_items
 
 def check_university(db: Session, university_name: str) -> models.University:
     university = get_university(db, university_name)
@@ -64,6 +65,15 @@ def check_course(course: int) -> None:
         )
 
 
+def check_timetable(user: models.User, timetable_id):
+    user_timetables_id = [timetable.id for timetable in user.timetables_info]  # type: ignore
+    if timetable_id not in user_timetables_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Timetable not found"
+        )
+
+
 def get_current_timetable(db: Session, name: str, user_id: int | Column[Integer]) -> schemas.TimetableOut:
     db_timetable = get_timetable_by_name_and_user_id(db, name, user_id)
     if not db_timetable:
@@ -97,6 +107,8 @@ def validate_timetable(
     university: models.University,
     specialization: models.Specialization
     ) -> schemas.TimetableOut:
+    valid_upper_week_items = validate_upper_week_items(db_timetable.upper_week_items)  # type: ignore
+    valid_lower_week_items = validate_lower_week_items(db_timetable.lower_week_items)  # type: ignore
     return schemas.TimetableOut(
         id=db_timetable.id, # type: ignore
         name=db_timetable.name, # type: ignore
@@ -105,7 +117,7 @@ def validate_timetable(
         specialization_code=specialization.code, #type: ignore
         education_level=specialization.education_level, # type: ignore
         course=db_timetable.course, # type: ignore
-        upper_week_items=db_timetable.upper_week_items, # type: ignore
-        lower_week_items=db_timetable.lower_week_items, # type: ignore
-        tasks=db_timetable.tasks, # type: ignore
+        upper_week_items=valid_upper_week_items,
+        lower_week_items=valid_lower_week_items,
+        tasks=[], # type: ignore
     )

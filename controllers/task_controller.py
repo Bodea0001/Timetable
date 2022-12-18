@@ -7,9 +7,19 @@ from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table, d
     get_timetable_byid, get_tasks_by_user_id
 
 
-def addTask(task: schemas.TaskBase, db: Session):
-    create_task(db, task)
+def addTask(task: schemas.TaskOut, db: Session, user_id: int):
+    check_task_status(task.statuses[0].status)
+    create_task(db, task, user_id)
     return HTTPException(status_code=201, detail='Task created successfully')
+
+
+def check_task_status(task_status: schemas.TaskStatusesEnum) -> None:
+    statuses = schemas.TaskStatusesEnum._value2member_map_.keys()
+    if task_status not in statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid task status"
+        )
 
 
 def getTaskBySubject(subject: str, id_timetable: int, db: Session):

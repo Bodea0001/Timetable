@@ -22,9 +22,7 @@ async def get_task_by_subject(subject: str, id_timetable: int, db: Session = Dep
 
 
 @router.get('/task/user_id', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def get_task_by_user_id(token: str, db: Session = Depends(get_db)):
-    user: schemas.User
-    user = await get_current_user(db, token)
+async def get_task_by_user_id(db: Session = Depends(get_db), user: schemas.User = Depends(get_current_user)):
     return get_task_by_userid(db, user.id)
 
 

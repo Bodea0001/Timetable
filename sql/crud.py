@@ -23,6 +23,17 @@ def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     return db_user
 
 
+def get_tasks_by_user_id(db: Session, user_id: int):
+    result = db.execute(select(models.TimetableUser).where(models.TimetableUser.id_user == user_id))
+    tables = []
+    for res in result:
+        tables.append(res.TimetableUser.id_timetable)
+    tasks = []
+    for i in tables:
+        tasks.append(get_all_tasks_in_table(db, i))
+    return tasks
+
+
 def create_task(db: Session, task: schemas.TaskBase):
     db_task = models.Task(
         id_timetable=task.timetable_id,
@@ -121,6 +132,8 @@ def get_specialization_by_code(
 
 def get_specialization_by_id(db: Session, specialization_id: int | Column[Integer]) -> models.Specialization | None:
     return db.query(models.Specialization).filter(models.Specialization.id == specialization_id).first()
+
+
 def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
                                                                                         id_timetable))

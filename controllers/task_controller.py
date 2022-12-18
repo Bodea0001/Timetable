@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import models.schemas
 from models import schemas
 from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table, delete_task_from_table, \
-    get_timetable_byid
+    get_timetable_byid, get_tasks_by_user_id
 
 
 def addTask(task: schemas.TaskBase, db: Session):
@@ -14,6 +14,10 @@ def addTask(task: schemas.TaskBase, db: Session):
 
 def getTaskBySubject(subject: str, id_timetable: int, db: Session):
     return get_task_by_subject(db, id_timetable, subject)
+
+
+def get_task_by_userid(db: Session, user_id: int):
+    return get_tasks_by_user_id(db, user_id)
 
 
 def getAllTaskInTable(id_timetable: int, db: Session):

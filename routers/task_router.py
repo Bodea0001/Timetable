@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from models import schemas
 from controllers.user import get_current_user
 from controllers.db import get_db
-from controllers.task_controller import addTask, getTaskBySubject, getAllTaskInTable, deleteTaskFromTable
+from controllers.task_controller import addTask, getTaskBySubject, getAllTaskInTable, deleteTaskFromTable, \
+    get_task_by_userid
 
 router = APIRouter()
 
@@ -18,6 +19,11 @@ async def create_task(task: schemas.TaskBase, db: Session = Depends(get_db)):
 @router.get('/task/subject', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def get_task_by_subject(subject: str, id_timetable: int, db: Session = Depends(get_db)):
     return getTaskBySubject(subject, id_timetable, db)
+
+
+@router.get('/task/user_id', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
+async def get_task_by_user_id(db: Session = Depends(get_db), user: schemas.User = Depends(get_current_user)):
+    return get_task_by_userid(db, user.id)
 
 
 @router.get('/task', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])

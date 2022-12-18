@@ -34,7 +34,15 @@ def get_tasks_by_user_id(db: Session, user_id: int):
     return tasks
 
 
-def create_task(db: Session, task: schemas.TaskBase):
+def get_task_id(subject: str, description: str, id_timetable: int, db: Session):
+    result = db.execute(select(models.Task).where(models.Task.subject == subject). where(models.Task.id_timetable
+                                                                                         == id_timetable).
+                        where(models.Task.description == description))
+    res = result.scalars().all()
+    return res[0].id
+
+
+def create_task(db: Session, task: schemas.TaskOut, user_id: int):
     db_task = models.Task(
         id_timetable=task.timetable_id,
         description=task.description,
@@ -44,6 +52,15 @@ def create_task(db: Session, task: schemas.TaskBase):
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    id_task = get_task_id(task.subject, task.description, task.timetable_id, db)
+    db_statuses = models.TaskStatuses(
+        id_task=id_task,
+        id_user=user_id,
+        status=task.statuses[0].status
+    )
+    db.add(db_statuses)
+    db.commit()
+    db.refresh(db_statuses)
     return db_task
 
 

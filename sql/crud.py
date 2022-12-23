@@ -58,9 +58,8 @@ def get_timetable_by_name_and_user_id(
         ).filter(models.Timetable.name == timetable_name).first()
 
 
-def get_timetable_byid(db: Session, timetable_id):
-    result = db.execute(select(models.Timetable).where(models.Timetable.id == timetable_id))
-    return result.scalars().all()
+def get_timetable_by_id(db: Session, timetable_id: int | Column[Integer]) -> models.Timetable | None:
+    return db.query(models.Timetable).filter(models.Timetable.id == timetable_id).first()
 
 
 def get_timetable_by_name_university_id_specialization_id_course(
@@ -210,6 +209,31 @@ def create_lower_day_subject(
     db.commit()
     db.refresh(db_lower_day_subject)
     return db_lower_day_subject
+
+
+def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses:
+    return db.query(models.TimetableUser.status).filter(
+        models.TimetableUser.id_user == user_id,
+        models.TimetableUser.id_timetable == timetable_id,
+        ).first()[0] # type: ignore
+
+
+def update_timetable(db: Session, timetable_id: int | Column[Integer], timetable_data: schemas.TimetableCreate):
+    db.query(models.Timetable).filter(models.Timetable.id == timetable_id).update(
+        {
+            models.Timetable.name: timetable_data.name,
+            models.Timetable.id_university: timetable_data.id_university,
+            models.Timetable.id_specialization: timetable_data.id_specialization,
+            models.Timetable.course: timetable_data.course
+        },
+        synchronize_session=False
+        )
+    db.commit()  
+
+
+def delete_timetable(db: Session, timetable_id: int | Column[Integer]):
+    db.query(models.Timetable).filter(models.Timetable.id == timetable_id).delete()
+    db.commit()
 
 
 def get_task_by_subject(db: Session, id_timetable: int, subject: str):

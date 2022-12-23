@@ -15,7 +15,7 @@ from config import ACCESS_TOKEN_EXPIRE_MINUTES
 router = APIRouter()
 
 
-@router.post("/register", response_model=schemas.Token, tags=["register"], status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=schemas.Token, tags=["auth"], status_code=status.HTTP_201_CREATED)
 async def process_register(form_data: schemas.OAuth2PasswordRequestFormUpdate = Depends(), db: Session = Depends(get_db)):
     email = form_data.username
     if not is_email_valid(email):

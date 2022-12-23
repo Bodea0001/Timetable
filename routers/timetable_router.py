@@ -10,13 +10,17 @@ from controllers.timetable import (
     check_course,
     get_current_timetable,
     validate_timetable,
+    check_timetable
     )
 from sql import models
 from sql.crud import ( 
     get_timetable_by_name_and_user_id,
     create_timetable,
     create_timetable_user,
-    get_timetable_by_name_university_id_specialization_id_course
+    get_timetable_by_name_university_id_specialization_id_course,
+    get_timetable_user_status,
+    update_timetable,
+    delete_timetable
     )
 
 
@@ -82,6 +86,71 @@ async def create_new_timetable(
     )
 async def get_user_timetable(name: str, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     return get_current_timetable(db, name, user.id)  # type: ignore
+
+
+@router.patch(
+    path="/update",
+    response_model=schemas.TimetableOut,
+    summary="Update user's timetable",
+    )
+async def update_user_timetable(
+    timetable_id: int,
+    form_data: schemas.TimetableRequestForm = Depends(),
+    user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+    ):
+    check_timetable(user, timetable_id)
+    
+    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
+    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User doesn't have access rights to change this timetable"
+        )
+    
+    university = check_university(db, form_data.university)
+    specialization = get_specialization(db, form_data.specialization_name, form_data.specialization_code, form_data.education_level)
+    check_course(form_data.course)
+        
+    timetable = get_timetable_by_name_and_user_id(db, form_data.name, user.id)
+    if timetable:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account already have timetable with this name"
+        )
+    timetable = get_timetable_by_name_university_id_specialization_id_course(db, \
+        form_data.name, university.id, specialization.id, form_data.course)
+    if timetable:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Timetable with this data already exists"
+        )
+
+    timetable_data = schemas.TimetableCreate(
+        name=form_data.name,
+        id_university=university.id,  # type: ignore
+        id_specialization=specialization.id,  # type: ignore 
+        course=form_data.course,
+    )
+    update_timetable(db, timetable_id, timetable_data)
+    return get_current_timetable(db, form_data.name, user.id)
+
+
+@router.delete("/delete", summary="Delete user's timetable")
+async def delete_user_timetable(
+    timetable_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+    ):
+    check_timetable(user, timetable_id)
+
+    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
+    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User doesn't have access rights to delete this timetable"
+        )    
+    delete_timetable(db, timetable_id)
 
 
 # @router.get(

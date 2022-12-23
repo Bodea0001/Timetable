@@ -12,8 +12,8 @@ from controllers.timetable import check_timetable
 
 
 router = APIRouter(
-    prefix="/weekly_timetable",
-    tags=["weekly_timetable", "timetable"],
+    prefix="/week",
+    tags=["week", "timetable"],
     )
 
 

@@ -44,68 +44,60 @@ class Task(Base):  # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     description = Column(Text, nullable=False)
     subject = Column(String(150))
     deadline = Column(DateTime, nullable=False)
 
-    statuses = relationship("TaskStatuses")
-    # owner = relationship("Timetable", back_populates="tasks")
+    statuses = relationship("TaskStatuses", cascade="all, delete")
 
 
 class TaskStatuses(Base):  # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_task = Column(ForeignKey("task.id"))
+    id_task = Column(ForeignKey("task.id", ondelete="CASCADE"))
     id_user = Column(ForeignKey("user.id"))
     status = Column(String, nullable=False)
-    # owner = relationship("Task", back_populates="statuses")
 
 
 class UpperWeek(Base):  # type: ignore
     __tablename__ = "upper_week"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("UpperDaySubjects")
-    # owner = relationship("Timetable", back_populates="upper_week_items")
+    subjects = relationship("UpperDaySubjects", cascade="all, delete")
 
 
 class UpperDaySubjects(Base):  # type: ignore
     __tablename__ = "upper_day_subjects"
     
     id = Column(Integer, primary_key=True, index=True)
-    id_upper_week = Column(ForeignKey("upper_week.id"))
+    id_upper_week = Column(ForeignKey("upper_week.id", ondelete="CASCADE"), nullable=False)
     subject = Column(String(150), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
-    # owner = relationship("UpperWeek", back_populates="subjects")
 
 
 class LowerWeek(Base):  # type: ignore
     __tablename__ = "lower_week"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("LowerDaySubjects")
-    # owner = relationship("Timetable", back_populates="lower_week_items")
+    subjects = relationship("LowerDaySubjects", cascade="all, delete")
 
 
 class LowerDaySubjects(Base):  # type: ignore
     __tablename__ = "lower_day_subjects"
     id = Column(Integer, primary_key=True, index=True)
-    id_lower_week = Column(ForeignKey("lower_week.id"), nullable=False)
+    id_lower_week = Column(ForeignKey("lower_week.id", ondelete="CASCADE"), nullable=False)
     subject = Column(String(150), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
-    # owner = relationship("LowerWeek", back_populates="subjects")
 
 
 class Timetable(Base):  # type: ignore
@@ -117,17 +109,17 @@ class Timetable(Base):  # type: ignore
     id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
     course = Column(Integer, nullable=False)
 
-    upper_week_items = relationship("UpperWeek")
-    lower_week_items = relationship("LowerWeek")
-    tasks = relationship("Task")
-    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info")
+    upper_week_items = relationship("UpperWeek", cascade="all, delete")
+    lower_week_items = relationship("LowerWeek", cascade="all, delete")
+    tasks = relationship("Task", cascade="all, delete")
+    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info", cascade="all, delete")
 
 
 class TimetableUser(Base):  # type: ignore
     __tablename__ = "timetable_user"
 
     id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"), primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), primary_key=True, index=True)
     status = Column(String(50), nullable=False)
 
 

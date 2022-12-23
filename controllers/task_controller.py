@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import models.schemas
 from models import schemas
 from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table, delete_task_from_table, \
-    get_timetable_byid, get_tasks_by_user_id
+    get_timetable_by_id, get_tasks_by_user_id
 
 
 def addTask(task: schemas.TaskBase, db: Session):
@@ -30,7 +30,7 @@ def deleteTaskFromTable(id_timetable: int, id_task: int, db: Session):
 
 
 def get_valid_task(db: Session, task: models.schemas.TaskBase):
-    timetable = get_timetable_byid(db, task.timetable_id)
+    timetable = get_timetable_by_id(db, task.timetable_id)
     if not timetable:
         raise HTTPException(
             status_code=404,

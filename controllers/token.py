@@ -6,11 +6,11 @@ from config import SECRET_KEY, ALGORITHM
 from controllers.oauth2 import oauth2_scheme
 
 
-async def get_token(token: str = Depends(oauth2_scheme)):
+def get_token(token: str = Depends(oauth2_scheme)):
     return token
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -19,3 +19,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    return create_token(data, expires_delta)
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
+    return create_token(data, expires_delta)
+    

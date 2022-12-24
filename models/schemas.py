@@ -7,6 +7,7 @@ from enum import Enum
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -210,7 +211,20 @@ class User(UserBase):
     id: int
     registry_date: datetime
     tg_username: str | None = None
+    refresh_tokens: list[str]
+    white_list_ip: list[str]
     timetables_info: list[Timetable]
+
+class UserRefreshToken(BaseModel):
+    id: int
+    id_user: int
+    refresh_token: str
+
+
+class UserWhiteIP(BaseModel):
+    id: int
+    id_user: int
+    white_ip: str
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):

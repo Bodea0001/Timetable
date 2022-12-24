@@ -21,7 +21,25 @@ class User(Base):  # type: ignore
     registry_date = Column(DateTime, default=datetime.utcnow())
     tg_username = Column(String)
 
+    refresh_tokens = relationship("UserRefreshToken")
+    white_list_ip = relationship("UserWhiteIP")
     timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
+
+
+class UserRefreshToken(Base):  # type: ignore
+    __tablename__ = "user_refresh_token"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    refresh_token = Column(String, nullable=False)
+
+
+class UserWhiteIP(Base):  # type: ignore
+    __tablename__ = "user_white_ip"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    white_ip = Column(String(30), nullable=False)
 
 
 class University(Base):  # type: ignore

@@ -10,6 +10,21 @@ def get_user(db: Session, username: str | Column[String]) -> models.User | None:
     return db.query(models.User).filter(models.User.email == username).first()
 
 
+def is_user_tg(db: Session, tg_username: str | Column[String]) -> Column[String] | None:
+    return db.query(models.User.tg_username).filter(models.User.tg_username == tg_username).first()[0]  # type: ignore
+
+
+def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.UserUpdate):
+    db.query(models.User).filter(models.User.id == user_id).update(
+        {
+            models.User.first_name: user_data.first_name,
+            models.User.last_name: user_data.last_name,
+        },
+        synchronize_session=False
+        )
+    db.commit()  
+
+
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     db_user = models.User(
         email=user.email,

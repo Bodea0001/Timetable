@@ -200,6 +200,11 @@ class Application(ApplicationBase):
     id_user: int
 
 
+class UserUpdate(BaseModel):
+    first_name: str
+    last_name: str
+
+
 class UserBase(BaseModel):
     email: EmailStr
     first_name: str
@@ -211,12 +216,14 @@ class UserBase(BaseModel):
 
 class UserOutLite(UserBase):
     id: int
+    tg_username: str | None
     applications: list[ApplicationBase]
     timetables_info: list[TimetableOutLite]
 
 
 class UserOut(UserBase):
     id: int
+    tg_username: str | None
     applications: list[ApplicationBase]
     timetables_info: list[TimetableOut]
 

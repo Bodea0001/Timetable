@@ -1,14 +1,15 @@
 import jwt
-from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
 
 from sql import models
-from models import schemas
 from sql.crud import get_user
-from controllers.password import verify_password
-from controllers.oauth2 import oauth2_scheme
-from controllers.db import get_db
+from models import schemas
 from models.schemas import TokenData
+from controllers.db import get_db
+from controllers.oauth2 import oauth2_scheme
+from controllers.password import verify_password
+from controllers.timetable import get_valid_timetable
 from config import SECRET_KEY, ALGORITHM
 
 
@@ -40,6 +41,20 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         raise credentials_exception
     return user
 
+
+def get_valid_user(db: Session, user: models.User) -> schemas.UserOut:
+    timetables = [get_valid_timetable(db, db_timetable) for db_timetable in user.timetables_info]  # type: ignore
+    applications = [validate_application(application) for application in user.applications]  # type: ignore
+    return schemas.UserOut(
+        id=user.id, # type: ignore
+        email=user.email, # type: ignore 
+        first_name=user.first_name, # type: ignore
+        last_name=user.last_name, # type: ignore
+        tg_username=user.tg_username,  # type: ignore
+        applications=applications,  # type: ignore
+        timetables_info=timetables  # type: ignore
+    )
+    
 
 def validate_application(application: models.Application) -> schemas.Application:
     return schemas.Application(

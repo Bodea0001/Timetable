@@ -21,9 +21,19 @@ class User(Base):  # type: ignore
     registry_date = Column(DateTime, default=datetime.utcnow())
     tg_username = Column(String)
 
+    applications = relationship("Application")
     refresh_tokens = relationship("UserRefreshToken")
     white_list_ip = relationship("UserWhiteIP")
     timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
+
+
+class Application(Base):  # type: ignore
+    __tablename__ = "application"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
 
 
 class UserRefreshToken(Base):  # type: ignore
@@ -126,6 +136,7 @@ class Timetable(Base):  # type: ignore
     id_university = Column(ForeignKey("university.id"), nullable=False)
     id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
     course = Column(Integer, nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
 
     upper_week_items = relationship("UpperWeek", cascade="all, delete")
     lower_week_items = relationship("LowerWeek", cascade="all, delete")
@@ -139,6 +150,7 @@ class TimetableUser(Base):  # type: ignore
     id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
     id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), primary_key=True, index=True)
     status = Column(String(50), nullable=False)
+    date_added = Column(DateTime, default=datetime.utcnow())
 
 
 def create_db_and_tables():

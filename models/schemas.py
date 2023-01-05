@@ -153,6 +153,7 @@ class TimetableOutLite(TimetableBase):
     specialization_name: str
     specialization_code: str
     education_level: Education_level
+    creation_date: datetime
 
 
 class TimetableOut(TimetableOutLite):
@@ -167,6 +168,7 @@ class Timetable(TimetableBase):
     id: int
     id_university: int
     id_specialization: int
+    creation_date: datetime
 
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
@@ -178,10 +180,24 @@ class TimetableUserStatuses(str, Enum):
     user = "пользователь"   
 
 
-class TimetableUser(BaseModel):
+class TimetableUserCreate(BaseModel):
     id_user: int
     id_timetable: int
     status: TimetableUserStatuses
+
+
+class TimetableUser(TimetableUserCreate):
+    date_added: datetime
+    
+
+class ApplicationBase(BaseModel):
+    id: int
+    id_timetable: int
+    creation_date: datetime
+
+
+class Application(ApplicationBase):
+    id_user: int
 
 
 class UserBase(BaseModel):
@@ -195,11 +211,13 @@ class UserBase(BaseModel):
 
 class UserOutLite(UserBase):
     id: int
+    applications: list[ApplicationBase]
     timetables_info: list[TimetableOutLite]
 
 
 class UserOut(UserBase):
     id: int
+    applications: list[ApplicationBase]
     timetables_info: list[TimetableOut]
 
 
@@ -211,6 +229,7 @@ class User(UserBase):
     id: int
     registry_date: datetime
     tg_username: str | None = None
+    applications: list[ApplicationBase]
     refresh_tokens: list[str]
     white_list_ip: list[str]
     timetables_info: list[Timetable]
@@ -258,7 +277,7 @@ class TimetableRequestForm:
         university: str = Form(),
         specialization_name: str | None= Form(default=None),
         specialization_code: str | None = Form(default=None),
-        education_level: Education_level = Form(),
+        education_level: Education_level | None = Form(default=None),
         course: int = Form(ge=1, le=5)
     ):
         self.name = name

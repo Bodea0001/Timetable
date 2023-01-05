@@ -82,6 +82,23 @@ def create_task(db: Session, task: schemas.TaskBase):
     return db_task
 
 
+def get_timetables(
+    db: Session,
+    timetable_name: str | Column[String],
+    university_id: int | Column[Integer],
+    specialization_id: int | Column[Integer],
+    course: int | Column[Integer],
+    skip: int,
+    limit: int,
+) -> list[models.Timetable] | None:
+    return db.query(models.Timetable).filter(
+        models.Timetable.name == timetable_name,
+        models.Timetable.id_university == university_id,
+        models.Timetable.id_specialization == specialization_id,
+        models.Timetable.course == course,
+    ).offset(skip).limit(limit).all()
+
+
 def get_timetable_by_name_and_user_id(
     db: Session,
     timetable_name: str | Column[String],
@@ -112,6 +129,14 @@ def get_timetable_by_name_university_id_specialization_id_course(
     ).first()
 
 
+def get_timetables_id_where_user_is_elder(db: Session, user_id: int | Column[Integer]) -> list[int] | None:
+    timetables_id = db.query(models.TimetableUser.id_timetable).filter(
+        models.TimetableUser.id_user == user_id,
+        models.TimetableUser.status == schemas.TimetableUserStatuses.elder,
+    ).all()
+    return [timetable_id[0] for timetable_id in timetables_id]
+
+
 def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.Timetable:
     db_timetable = models.Timetable(
         name = timetable.name,
@@ -125,7 +150,7 @@ def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.
     return db_timetable
 
 
-def create_timetable_user(db: Session, timetable_user_relation: schemas.TimetableUser):
+def create_timetable_user(db: Session, timetable_user_relation: schemas.TimetableUserCreate):
     db_timetable_user_relation = models.TimetableUser(
         id_user = timetable_user_relation.id_user,
         id_timetable = timetable_user_relation.id_timetable,
@@ -147,7 +172,7 @@ def get_specialization_by_name(
     db: Session,
     specialization_name: str | Column[String],
     education_level: schemas.Education_level
-    ) -> models.Specialization | None:
+) -> models.Specialization | None:
     return db.query(models.Specialization).filter(
         models.Specialization.name == specialization_name,
         models.Specialization.education_level == education_level,
@@ -157,10 +182,9 @@ def get_specialization_by_name(
 def get_specialization_by_code(
     db: Session,
     specialization_code: str | Column[String],
-    education_level: schemas.Education_level) -> models.Specialization | None:
+) -> models.Specialization | None:
     return db.query(models.Specialization).filter(
         models.Specialization.code == specialization_code,
-        models.Specialization.education_level == education_level
         ).first()
 
 
@@ -251,6 +275,79 @@ def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timet
         models.TimetableUser.id_user == user_id,
         models.TimetableUser.id_timetable == timetable_id,
         ).first()[0] # type: ignore
+
+
+def get_timetable_elder(db: Session, timetable_id: int | Column[Integer]) -> int | None:
+    return db.query(models.TimetableUser.id_user).filter(
+        models.TimetableUser.id_timetable == timetable_id,
+        models.TimetableUser.status == schemas.TimetableUserStatuses.elder
+    ).first()[0]  # type: ignore
+
+
+def create_application(db: Session, user_id: int| Column[Integer], timetable_id: int | Column[Integer]):
+    application = models.Application(
+        id_user = user_id,
+        id_timetable = timetable_id
+    )
+    db.add(application)
+    db.commit()
+
+
+def get_timetable_users_relation_by_user_id(db: Session, user_id: int | Column[Integer]) -> list[models.TimetableUser] | list[None]:
+    return db.query(models.TimetableUser).filter(
+        models.TimetableUser.id_user == user_id,
+        ).all()
+
+
+def get_timetable_user_relation_by_user_id_and_timetable_id(
+    db: Session, 
+    user_id: int | Column[Integer], 
+    timetable_id: int | Column[Integer]
+) -> models.TimetableUser | None:
+    return db.query(models.TimetableUser).filter(
+        models.TimetableUser.id_user == user_id,
+        models.TimetableUser.id_timetable == timetable_id,
+        ).first()
+
+
+def create_timetable_user_relation(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]):
+    timetable_user_relation = models.TimetableUser(
+        id_user = user_id,
+        id_timetable = timetable_id,
+        status = schemas.TimetableUserStatuses.user,
+    )
+    db.add(timetable_user_relation)
+    db.commit()
+
+
+def delete_timetable_user_relation(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]):
+    db.query(models.TimetableUser).filter(
+        models.TimetableUser.id_user == user_id,
+        models.TimetableUser.id_timetable == timetable_id
+    ).delete()
+    db.commit()
+
+    
+def get_application_by_id(db: Session, application_id: int | Column[Integer]) -> models.Application | None:
+    return db.query(models.Application).filter(models.Application.id ==application_id).first()
+
+
+def get_applications_by_timetable_id(db: Session, timetable_id: int | Column[Integer]) -> list[models.Application] | list[None]:
+    return db.query(models.Application).filter(models.Application.id_timetable == timetable_id).all()
+
+def get_application_by_user_id_and_timetable_id(
+    db: Session, user_id: int | Column[Integer],
+    timetable_id: int | Column[Integer]
+) -> models.Application | None:
+    return db.query(models.Application).filter(
+        models.Application.id_user == user_id,
+        models.Application.id_timetable == timetable_id,
+    ).first()
+
+
+def delete_application(db: Session, application_id: int | Column[Integer]):
+    db.query(models.Application).filter(models.Application.id == application_id).delete()
+    db.commit()
 
 
 def update_timetable(db: Session, timetable_id: int | Column[Integer], timetable_data: schemas.TimetableCreate):

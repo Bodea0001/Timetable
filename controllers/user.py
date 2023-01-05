@@ -2,6 +2,8 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from sql import models
+from models import schemas
 from sql.crud import get_user
 from controllers.password import verify_password
 from controllers.oauth2 import oauth2_scheme
@@ -37,3 +39,12 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
     if user is None:
         raise credentials_exception
     return user
+
+
+def validate_application(application: models.Application) -> schemas.Application:
+    return schemas.Application(
+        id=application.id,  # type: ignore
+        id_user=application.id_user,  # type: ignore
+        id_timetable=application.id_timetable,  # type: ignore
+        creation_date=application.creation_date  #type: ignore
+    )

@@ -21,11 +21,16 @@ def check_time(start_time: list[time], end_time:list[time]):
             detail="No time entered"
         )
     for i in range(len(start_time) - 1):
-        if start_time[i] > end_time[i+1]:
+        if start_time[i+1] < end_time[i] or start_time[i] > end_time[i]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Incorrect time"
             )
+    if start_time[-1] > end_time[-1]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect time"
+        )
 
 
 def validate_upper_week_items(upper_week_items: list[models.UpperWeek]) -> list[schemas.UpperWeek]:

@@ -78,13 +78,20 @@ def check_course(course: int, education_level: schemas.Education_level | None = 
         )
 
 
-def check_timetable(user: models.User, timetable_id):
-    user_timetables_id = [timetable.id for timetable in user.timetables_info]  # type: ignore
-    if timetable_id not in user_timetables_id:
+def check_timetable(user: models.User, timetable_id) -> schemas.TimetableOut:
+    timetable = None
+    for user_timetable in user.timetables_info:  # type: ignore
+        if timetable_id == user_timetable.id:
+            timetable = user_timetable
+            break
+
+    if not timetable:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Timetable not found"
         )
+    else:
+        return timetable
 
 
 def get_current_timetable(db: Session, name: str, user_id: int | Column[Integer]) -> schemas.TimetableOut:

@@ -76,13 +76,13 @@ class Task(TaskBase):
 
 
 class Day(str, Enum):
-    monday = "Понедельник"
-    tuesday = "Вторник"
-    wednesday = "Среда"
-    thursday = "Четверг"
-    friday = "Пятница"
-    saturday = "Суббота"
-    sunday = "Воскресенье"
+    MONDAY = "Понедельник"
+    TUESDAY = "Вторник"
+    WEDNESDAY = "Среда"
+    THURSDAY = "Четверг"
+    FRIDAY = "Пятница"
+    SATURDAY = "Суббота"
+    SUNDAY = "Воскресенье"
 
 
 class WeekBase(BaseModel):
@@ -90,6 +90,11 @@ class WeekBase(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class WeekName(str, Enum):
+    UPPER = "верхняя"
+    LOWER = "нижняя"
 
 
 class Week(WeekBase):
@@ -112,6 +117,11 @@ class DaySubjects(DaySubjectsBase):
 
 class WeekCreate(WeekBase):
     subjects: list[DaySubjectsBase]
+
+
+class WeekUpdate(WeekBase):
+    id: int
+    subjects: list[DaySubjects]
 
 
 class WeekOut(Week):

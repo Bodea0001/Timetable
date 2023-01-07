@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from sql import models
-from sql.crud import update_user, is_user_tg
+from sql.crud import update_user
 from models import schemas
 from controllers.db import get_db
 from controllers.user import get_current_user, get_valid_user

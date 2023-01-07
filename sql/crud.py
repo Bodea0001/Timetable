@@ -10,10 +10,6 @@ def get_user(db: Session, username: str | Column[String]) -> models.User | None:
     return db.query(models.User).filter(models.User.email == username).first()
 
 
-def is_user_tg(db: Session, tg_username: str | Column[String]) -> Column[String] | None:
-    return db.query(models.User.tg_username).filter(models.User.tg_username == tg_username).first()[0]  # type: ignore
-
-
 def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.UserUpdate):
     db.query(models.User).filter(models.User.id == user_id).update(
         {
@@ -212,13 +208,21 @@ def create_upper_weekly_timetable(
     timetable_id: int | Column[Integer], 
     upper_weekly_timetable: list[schemas.WeekCreate]
     ):
-    for upper_day_timetable in upper_weekly_timetable:
-        upper_week = create_upper_week(db, timetable_id, upper_day_timetable.day)
-        for upper_day_subject in upper_day_timetable.subjects:
-            create_upper_day_subject(db, upper_week.id, upper_day_subject)
+    for upper_daily_timetable in upper_weekly_timetable:
+        create_upper_week_day(db, timetable_id, upper_daily_timetable)
     
 
-def create_upper_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.UpperWeek:
+def create_upper_week_day(
+    db: Session, 
+    timetable_id: int | Column[Integer], 
+    upper_daily_timetable: schemas.WeekCreate
+):
+    upper_day = create_day_in_upper_week(db, timetable_id, upper_daily_timetable.day)
+    for upper_day_subject in upper_daily_timetable.subjects:
+        create_upper_day_subject(db, upper_day.id, upper_day_subject)
+
+
+def create_day_in_upper_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.UpperWeek:
     db_upper_week = models.UpperWeek(
         id_timetable = timetable_id,
         day = day,
@@ -231,19 +235,64 @@ def create_upper_week(db: Session, timetable_id: int | Column[Integer], day: sch
 
 def create_upper_day_subject(
     db: Session,
-    upper_week_id: int | Column[Integer],
+    upper_day_id: int | Column[Integer],
     upper_day_subject: schemas.DaySubjectsBase
-    ) -> models.UpperDaySubjects:
+):
     db_upper_day_subject = models.UpperDaySubjects(
-        id_upper_week = upper_week_id,
+        id_upper_week = upper_day_id,
         subject = upper_day_subject.subject,
         start_time = upper_day_subject.start_time,
         end_time = upper_day_subject.end_time
     )
     db.add(db_upper_day_subject)
     db.commit()
-    db.refresh(db_upper_day_subject)
-    return db_upper_day_subject
+
+
+def update_upper_weekly_timetable(db: Session, upper_weekly_timetable: list[schemas.WeekUpdate]):
+    for upper_day_timetable in upper_weekly_timetable:
+        update_day_in_upper_week(db, upper_day_timetable.day, upper_day_timetable.id)
+        for upper_day_subject in upper_day_timetable.subjects:
+            update_upper_day_subject(db, upper_day_subject)
+
+
+def update_day_in_upper_week(db: Session, day: schemas.Day, day_id: int | Column[Integer]):
+    db.query(models.UpperWeek).filter(models.UpperWeek.id == day_id).update(
+        {
+            models.UpperWeek.day: day
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def update_upper_day_subject(
+    db: Session,
+    upper_day_subject: schemas.DaySubjects
+):
+    db.query(models.UpperDaySubjects).filter(models.UpperDaySubjects.id == upper_day_subject.id).update(
+        {
+            models.UpperDaySubjects.subject: upper_day_subject.subject,
+            models.UpperDaySubjects.start_time: upper_day_subject.start_time,
+            models.UpperDaySubjects.end_time: upper_day_subject.end_time
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def delete_upper_weekly_timetable(db: Session, timetable_id: int | Column[Integer]):
+    db.query(models.UpperWeek).filter(models.UpperWeek.id_timetable == timetable_id).delete()
+    db.commit()
+
+
+def delete_upper_daily_timetable(db: Session, day_id: int | Column[Integer]):
+    db.query(models.UpperWeek).filter(models.UpperWeek.id == day_id).delete()
+    db.commit()
+
+
+def delete_upper_day_subject(db: Session, subject_id: int | Column[Integer]):
+    db.query(models.UpperDaySubjects).filter(models.UpperDaySubjects.id == subject_id).delete()
+    db.commit()
 
 
 def create_lower_weekly_timetable(
@@ -251,13 +300,21 @@ def create_lower_weekly_timetable(
     timetable_id: int | Column[Integer], 
     lower_weekly_timetable: list[schemas.WeekCreate]
     ):
-    for lower_day_timetable in lower_weekly_timetable:
-        upper_week = create_lower_week(db, timetable_id, lower_day_timetable.day)
-        for lower_day_subject in lower_day_timetable.subjects:
-            create_lower_day_subject(db, upper_week.id, lower_day_subject)
+    for lower_daily_timetable in lower_weekly_timetable:
+        create_lower_week_day(db, timetable_id, lower_daily_timetable)
     
 
-def create_lower_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.LowerWeek:
+def create_lower_week_day(
+    db: Session, 
+    timetable_id: int | Column[Integer], 
+    lower_daily_timetable: schemas.WeekCreate
+):
+    lower_day = create_day_in_lower_week(db, timetable_id, lower_daily_timetable.day)
+    for lower_day_subject in lower_daily_timetable.subjects:
+        create_lower_day_subject(db, lower_day.id, lower_day_subject)
+
+
+def create_day_in_lower_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.LowerWeek:
     db_lower_week = models.LowerWeek(
         id_timetable = timetable_id,
         day = day,
@@ -270,11 +327,11 @@ def create_lower_week(db: Session, timetable_id: int | Column[Integer], day: sch
 
 def create_lower_day_subject(
     db: Session,
-    lower_week_id: int | Column[Integer],
+    lower_day_id: int | Column[Integer],
     lower_day_subject: schemas.DaySubjectsBase
     ) -> models.UpperDaySubjects:
     db_lower_day_subject = models.LowerDaySubjects(
-        id_lower_week = lower_week_id,
+        id_lower_week = lower_day_id,
         subject = lower_day_subject.subject,
         start_time = lower_day_subject.start_time,
         end_time = lower_day_subject.end_time
@@ -283,6 +340,53 @@ def create_lower_day_subject(
     db.commit()
     db.refresh(db_lower_day_subject)
     return db_lower_day_subject
+
+
+def update_lower_weekly_timetable(db: Session, lower_weekly_timetable: list[schemas.WeekUpdate]):
+    for lower_day_timetable in lower_weekly_timetable:
+        update_day_in_lower_week(db, lower_day_timetable.day, lower_day_timetable.id)
+        for lower_day_subject in lower_day_timetable.subjects:
+            update_lower_day_subject(db, lower_day_subject)
+
+
+def update_day_in_lower_week(db: Session, day: schemas.Day, day_id: int | Column[Integer]):
+    db.query(models.LowerWeek).filter(models.LowerWeek.id == day_id).update(
+        {
+            models.LowerWeek.day: day
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def update_lower_day_subject(
+    db: Session,
+    lower_day_subject: schemas.DaySubjects
+):
+    db.query(models.LowerDaySubjects).filter(models.LowerDaySubjects.id == lower_day_subject.id).update(
+        {
+            models.LowerDaySubjects.subject: lower_day_subject.subject,
+            models.LowerDaySubjects.start_time: lower_day_subject.start_time,
+            models.LowerDaySubjects.end_time: lower_day_subject.end_time
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def delete_lower_weekly_timetable(db: Session, timetable_id: int | Column[Integer]):
+    db.query(models.LowerWeek).filter(models.LowerWeek.id_timetable == timetable_id).delete()
+    db.commit()
+
+
+def delete_lower_daily_timetable(db: Session, day_id: int | Column[Integer]):
+    db.query(models.LowerWeek).filter(models.LowerWeek.id == day_id).delete()
+    db.commit()
+
+
+def delete_lower_day_subject(db: Session, subject_id: int | Column[Integer]):
+    db.query(models.LowerDaySubjects).filter(models.LowerDaySubjects.id == subject_id).delete()
+    db.commit()
 
 
 def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses:

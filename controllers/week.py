@@ -5,13 +5,142 @@ from sql import models
 from models import schemas
 
 
+def check_week_and_subject_ids(timetable_week_items: list[schemas.UpperWeek] | list[schemas.LowerWeek], weekly_timetable: list[schemas.WeekUpdate]):
+    check_week_ids(timetable_week_items, weekly_timetable)
+    check_subject_ids(timetable_week_items, weekly_timetable)
+
+
+def check_week_ids(timetable_week_items: list[schemas.UpperWeek] | list[schemas.LowerWeek], weekly_timetable: list[schemas.WeekUpdate]):
+    week_ids = {upper_day.id for upper_day in timetable_week_items}
+    submitted_week_id_list = [upper_day.id for upper_day in weekly_timetable]
+    submitted_week_ids = set(submitted_week_id_list)
+    if len(submitted_week_id_list) != len(submitted_week_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="There are duplicate week ids"
+        )
+    if not week_ids.issuperset(submitted_week_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unknown week id"
+        )
+
+
+def check_subject_ids(
+    timetable_week_items: list[schemas.UpperWeek] | list[schemas.LowerWeek],
+    weekly_timetable: list[schemas.WeekUpdate],
+):
+    submitted_week_id_list = [upper_day.id for upper_day in weekly_timetable]
+    subject_ids = {subject.id for upper_day in timetable_week_items for subject in upper_day.subjects}
+    submitted_subject_id_list = [subject.id for upper_day in weekly_timetable for subject in upper_day.subjects]
+    submitted_subject_ids = set(submitted_subject_id_list)
+    if len(submitted_subject_id_list) != len(submitted_subject_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="There are duplicate subject ids"
+        )
+    
+    timetable_week_items.sort(key=lambda value: value.id)  # type: ignore
+    submitted_week_id_list.sort()
+    subject_ids = [{subject.id for subject in upper_day.subjects} for upper_day in timetable_week_items if upper_day.id in submitted_week_id_list]
+    submitted_subject_ids = [{subject.id for subject in upper_day.subjects} for upper_day in weekly_timetable]
+    for i in range(len(subject_ids)):
+        if not subject_ids[i].issuperset(submitted_subject_ids[i]):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Unknown subject id"
+            )
+
+
+def check_day_in_timetable(
+    week_name: schemas.WeekName,
+    day_id: int,
+    timetable: schemas.TimetableOut
+) -> schemas.UpperWeek | schemas.LowerWeek:
+    if week_name == schemas.WeekName.UPPER and timetable.upper_week_items:
+        for day in timetable.upper_week_items:
+            if day_id == day.id:
+                return day
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Unknown day's id"
+            )
+    elif week_name == schemas.WeekName.LOWER and timetable.lower_week_items:
+        for day in timetable.lower_week_items:
+            if day_id == day.id:
+                return day
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Unknown day's id"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The weekly timetable doesn't exists"
+        )
+
+
+def check_subject_id_in_timetable(
+    week_name: schemas.WeekName,
+    subject_id: int,
+    timetable: schemas.TimetableOut
+) -> schemas.UpperDaySubjects | schemas.LowerDaySubjects:
+    if week_name == schemas.WeekName.UPPER and timetable.upper_week_items:
+        for day in timetable.upper_week_items:
+            for subject in day.subjects:
+                if subject_id == subject.id:
+                    return subject
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Unknown subject's id"
+            )
+    elif week_name == schemas.WeekName.LOWER and timetable.lower_week_items:
+        for day in timetable.lower_week_items:
+            for subject in day.subjects:
+                if subject_id == subject.id:
+                    return subject
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Unknown subject's id"
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The weekly timetable doesn't exists"
+        )
+
+
 def check_days(days: list[schemas.Day]):
     days_sorted = set(days)
     if len(days_sorted) != len(days):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="There are repeating days"
+            detail="There are duplicate days"
         )
+
+
+def append_subject_time(
+    daily_subject: schemas.DaySubjectsBase,
+    start_time_list: list[time],
+    end_time_list: list[time]
+):
+    if daily_subject.start_time in start_time_list or daily_subject.end_time in end_time_list:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This time is already occupied"
+        )
+    for i in range(len(start_time_list)):
+        if daily_subject.start_time < start_time_list[i]:
+            start_time_list.insert(i, daily_subject.start_time)
+            end_time_list.insert(i, daily_subject.end_time)
+            break
+    else:
+        start_time_list.append(daily_subject.start_time)
+        end_time_list.append(daily_subject.end_time)
 
 
 def check_time(start_time: list[time], end_time:list[time]):

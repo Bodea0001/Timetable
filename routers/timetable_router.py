@@ -167,6 +167,14 @@ async def delete_timetable_for_user(
     user: models.User = Depends(get_current_user)
 ):
     check_timetable(user, timetable_id)
+
+    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
+    if timetable_user_status == schemas.TimetableUserStatuses.elder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"The elder can delete the timetable only for all user's"
+        )  
+    
     delete_timetable_user_relation(db, user.id, timetable_id)
 
 

@@ -510,9 +510,35 @@ def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     return result.scalars().all()
 
 
-def get_all_tasks_in_table(db: Session, id_timetable: int):
+def get_all_tasks_in_table(db: Session, id_timetable: int, user_id: int):
     result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
-    return result.scalars().all()
+    tasks = result.scalars().all()
+    result = db.execute(select(models.TaskStatuses).where(models.TaskStatuses.id_user == user_id))
+    statuses = result.scalars().all()
+    tas = []
+    for task in tasks:
+        i = 0
+        for stat in statuses:
+            if stat.id_task == task.id:
+                i = 1
+                stats = [{
+                    "id": stat.id_task,
+                    "id_user": user_id,
+                    "status": stat.status
+                }]
+                break
+        if i == 1:
+            t = {
+                "id": task.id,
+                "timetable_id": id_timetable,
+                "description": task.description,
+                "deadline": task.deadline,
+                "subject": task.subject,
+                "statuses": stats
+            }
+            tas.append(t)
+            i = 0
+    return tas
 
 
 def delete_task_from_table(db: Session, id_timetable: int, id_task: int):

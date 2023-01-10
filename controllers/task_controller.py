@@ -30,8 +30,8 @@ def get_task_by_userid(db: Session, user_id: int):
     return get_tasks_by_user_id(db, user_id)
 
 
-def getAllTaskInTable(id_timetable: int, db: Session):
-    return get_all_tasks_in_table(db, id_timetable)
+def getAllTaskInTable(id_timetable: int, db: Session, user_id: int):
+    return get_all_tasks_in_table(db, id_timetable, user_id)
 
 
 def deleteTaskFromTable(id_timetable: int, id_task: int, db: Session):

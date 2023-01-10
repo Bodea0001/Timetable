@@ -1,9 +1,13 @@
 import sys
 from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from sql.database import Base, engine
+from sql.database import engine
+
+
+Base = declarative_base()
 
 
 class User(Base):  # type: ignore
@@ -17,7 +21,35 @@ class User(Base):  # type: ignore
     registry_date = Column(DateTime, default=datetime.utcnow())
     tg_username = Column(String)
 
+    applications = relationship("Application")
+    refresh_tokens = relationship("UserRefreshToken")
+    white_list_ip = relationship("UserWhiteIP")
     timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
+
+
+class Application(Base):  # type: ignore
+    __tablename__ = "application"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
+
+
+class UserRefreshToken(Base):  # type: ignore
+    __tablename__ = "user_refresh_token"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    refresh_token = Column(String, nullable=False)
+
+
+class UserWhiteIP(Base):  # type: ignore
+    __tablename__ = "user_white_ip"
+
+    id = Column(Integer, primary_key=True, index=True)
+    id_user = Column(ForeignKey("user.id"), nullable=False)
+    white_ip = Column(String(30), nullable=False)
 
 
 class University(Base):  # type: ignore
@@ -40,68 +72,60 @@ class Task(Base):  # type: ignore
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     description = Column(Text, nullable=False)
     subject = Column(String(150))
     deadline = Column(DateTime, nullable=False)
 
-    statuses = relationship("TaskStatuses")
-    # owner = relationship("Timetable", back_populates="tasks")
+    statuses = relationship("TaskStatuses", cascade="all, delete")
 
 
 class TaskStatuses(Base):  # type: ignore
     __tablename__ = "task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_task = Column(ForeignKey("task.id"))
+    id_task = Column(ForeignKey("task.id", ondelete="CASCADE"))
     id_user = Column(ForeignKey("user.id"))
     status = Column(String, nullable=False)
-    # owner = relationship("Task", back_populates="statuses")
 
 
 class UpperWeek(Base):  # type: ignore
     __tablename__ = "upper_week"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("UpperDaySubjects")
-    # owner = relationship("Timetable", back_populates="upper_week_items")
+    subjects = relationship("UpperDaySubjects", cascade="all, delete")
 
 
 class UpperDaySubjects(Base):  # type: ignore
     __tablename__ = "upper_day_subjects"
     
     id = Column(Integer, primary_key=True, index=True)
-    id_upper_week = Column(ForeignKey("upper_week.id"))
+    id_upper_week = Column(ForeignKey("upper_week.id", ondelete="CASCADE"), nullable=False)
     subject = Column(String(150), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
-    # owner = relationship("UpperWeek", back_populates="subjects")
 
 
 class LowerWeek(Base):  # type: ignore
     __tablename__ = "lower_week"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"))
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
     day = Column(String, nullable=False)
 
-    subjects = relationship("LowerDaySubjects")
-    # owner = relationship("Timetable", back_populates="lower_week_items")
+    subjects = relationship("LowerDaySubjects", cascade="all, delete")
 
 
 class LowerDaySubjects(Base):  # type: ignore
     __tablename__ = "lower_day_subjects"
     id = Column(Integer, primary_key=True, index=True)
-    id_lower_week = Column(ForeignKey("lower_week.id"), nullable=False)
+    id_lower_week = Column(ForeignKey("lower_week.id", ondelete="CASCADE"), nullable=False)
     subject = Column(String(150), nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
-    # owner = relationship("LowerWeek", back_populates="subjects")
 
 
 class Timetable(Base):  # type: ignore
@@ -112,19 +136,21 @@ class Timetable(Base):  # type: ignore
     id_university = Column(ForeignKey("university.id"), nullable=False)
     id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
     course = Column(Integer, nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
 
-    upper_week_items = relationship("UpperWeek")
-    lower_week_items = relationship("LowerWeek")
-    tasks = relationship("Task")
-    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info")
+    upper_week_items = relationship("UpperWeek", cascade="all, delete")
+    lower_week_items = relationship("LowerWeek", cascade="all, delete")
+    tasks = relationship("Task", cascade="all, delete")
+    users_info = relationship("User", secondary="timetable_user", back_populates="timetables_info", cascade="all, delete")
 
 
 class TimetableUser(Base):  # type: ignore
     __tablename__ = "timetable_user"
 
     id_user = Column(ForeignKey("user.id"), primary_key=True, index=True)
-    id_timetable = Column(ForeignKey("timetable.id"), primary_key=True, index=True)
+    id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), primary_key=True, index=True)
     status = Column(String(50), nullable=False)
+    date_added = Column(DateTime, default=datetime.utcnow())
 
 
 def create_db_and_tables():

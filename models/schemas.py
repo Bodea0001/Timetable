@@ -7,6 +7,7 @@ from enum import Enum
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -75,29 +76,33 @@ class Task(TaskBase):
 
 
 class Day(str, Enum):
-    monday = "Понедельник"
-    tuesday = "Вторник"
-    wednesday = "Среда"
-    thursday = "Четверг"
-    friday = "Пятница"
-    saturday = "Суббота"
-    sunday = "Воскресенье"
+    MONDAY = "Понедельник"
+    TUESDAY = "Вторник"
+    WEDNESDAY = "Среда"
+    THURSDAY = "Четверг"
+    FRIDAY = "Пятница"
+    SATURDAY = "Суббота"
+    SUNDAY = "Воскресенье"
 
 
 class WeekBase(BaseModel):
-    id: int
     day: Day
 
     class Config:
         orm_mode = True
 
 
+class WeekName(str, Enum):
+    UPPER = "верхняя"
+    LOWER = "нижняя"
+
+
 class Week(WeekBase):
+    id: int
     id_timetable: int
 
 
-class DaySubjects(BaseModel):
-    id: int
+class DaySubjectsBase(BaseModel):
     subject: str
     start_time: time
     end_time: time
@@ -106,11 +111,20 @@ class DaySubjects(BaseModel):
         orm_mode = True
 
 
-class UpperWeekOut(WeekBase):
+class DaySubjects(DaySubjectsBase):
+    id: int
+
+
+class WeekCreate(WeekBase):
+    subjects: list[DaySubjectsBase]
+
+
+class WeekUpdate(WeekBase):
+    id: int
     subjects: list[DaySubjects]
 
 
-class LowerWeekOut(WeekBase):
+class WeekOut(Week):
     subjects: list[DaySubjects]
 
 
@@ -149,6 +163,7 @@ class TimetableOutLite(TimetableBase):
     specialization_name: str
     specialization_code: str
     education_level: Education_level
+    creation_date: datetime
 
 
 class TimetableOut(TimetableOutLite):
@@ -163,6 +178,7 @@ class Timetable(TimetableBase):
     id: int
     id_university: int
     id_specialization: int
+    creation_date: datetime
 
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
@@ -174,10 +190,29 @@ class TimetableUserStatuses(str, Enum):
     user = "пользователь"   
 
 
-class TimetableUser(BaseModel):
+class TimetableUserCreate(BaseModel):
     id_user: int
     id_timetable: int
     status: TimetableUserStatuses
+
+
+class TimetableUser(TimetableUserCreate):
+    date_added: datetime
+    
+
+class ApplicationBase(BaseModel):
+    id: int
+    id_timetable: int
+    creation_date: datetime
+
+
+class Application(ApplicationBase):
+    id_user: int
+
+
+class UserUpdate(BaseModel):
+    first_name: str
+    last_name: str
 
 
 class UserBase(BaseModel):
@@ -191,11 +226,15 @@ class UserBase(BaseModel):
 
 class UserOutLite(UserBase):
     id: int
+    tg_username: str | None
+    applications: list[ApplicationBase]
     timetables_info: list[TimetableOutLite]
 
 
 class UserOut(UserBase):
     id: int
+    tg_username: str | None
+    applications: list[ApplicationBase]
     timetables_info: list[TimetableOut]
 
 
@@ -207,7 +246,21 @@ class User(UserBase):
     id: int
     registry_date: datetime
     tg_username: str | None = None
+    applications: list[ApplicationBase]
+    refresh_tokens: list[str]
+    white_list_ip: list[str]
     timetables_info: list[Timetable]
+
+class UserRefreshToken(BaseModel):
+    id: int
+    id_user: int
+    refresh_token: str
+
+
+class UserWhiteIP(BaseModel):
+    id: int
+    id_user: int
+    white_ip: str
 
 
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
@@ -241,7 +294,7 @@ class TimetableRequestForm:
         university: str = Form(),
         specialization_name: str | None= Form(default=None),
         specialization_code: str | None = Form(default=None),
-        education_level: Education_level = Form(),
+        education_level: Education_level | None = Form(default=None),
         course: int = Form(ge=1, le=5)
     ):
         self.name = name

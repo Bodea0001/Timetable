@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer
+
 from sql import models
 from sql.crud import (
     get_university,
@@ -11,7 +12,7 @@ from sql.crud import (
     get_specialization_by_id
     )
 from models import schemas
-
+from controllers.week import validate_upper_week_items, validate_lower_week_items
 
 def check_university(db: Session, university_name: str) -> models.University:
     university = get_university(db, university_name)
@@ -36,13 +37,20 @@ def get_specialization(
     db: Session,
     specialization_name: str | None,
     specialization_code: str | None,
-    education_level: schemas.Education_level,
+    education_level: schemas.Education_level | None,
     ) -> models.Specialization:
-    check_education_level(education_level)
-    if specialization_name:
+    if education_level:
+        check_education_level(education_level)
+
+    if specialization_name and education_level:
         specialization = get_specialization_by_name(db, specialization_name, education_level)
     elif specialization_code:
-        specialization = get_specialization_by_code(db, specialization_code, education_level)
+        specialization = get_specialization_by_code(db, specialization_code)
+    elif specialization_name and not education_level:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Along with specialization, it is necessary to introduce the education level"
+        )
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -56,12 +64,34 @@ def get_specialization(
     return specialization
 
 
-def check_course(course: int) -> None:
-    if not 0 < course < 6:
+def check_course(course: int, education_level: schemas.Education_level | None = None) -> None:
+    if education_level:
+        check_education_level(education_level)
+
+    if (not education_level and 1 <= course <= 5) or \
+    (education_level == schemas.Education_level.undergraduate and not 1 <= course <= 4) or \
+    (education_level == schemas.Education_level.magistracy and not 1 <= course <= 2) or \
+    (education_level == schemas.Education_level.specialty and not 1 <= course <= 6):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid course"
         )
+
+
+def check_timetable(user: models.User, timetable_id) -> schemas.TimetableOut:
+    timetable = None
+    for user_timetable in user.timetables_info:  # type: ignore
+        if timetable_id == user_timetable.id:
+            timetable = user_timetable
+            break
+
+    if not timetable:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Timetable not found"
+        )
+    else:
+        return timetable
 
 
 def get_current_timetable(db: Session, name: str, user_id: int | Column[Integer]) -> schemas.TimetableOut:
@@ -97,6 +127,8 @@ def validate_timetable(
     university: models.University,
     specialization: models.Specialization
     ) -> schemas.TimetableOut:
+    valid_upper_week_items = validate_upper_week_items(db_timetable.upper_week_items)  # type: ignore
+    valid_lower_week_items = validate_lower_week_items(db_timetable.lower_week_items)  # type: ignore
     return schemas.TimetableOut(
         id=db_timetable.id, # type: ignore
         name=db_timetable.name, # type: ignore
@@ -105,7 +137,16 @@ def validate_timetable(
         specialization_code=specialization.code, #type: ignore
         education_level=specialization.education_level, # type: ignore
         course=db_timetable.course, # type: ignore
-        upper_week_items=db_timetable.upper_week_items, # type: ignore
-        lower_week_items=db_timetable.lower_week_items, # type: ignore
-        tasks=db_timetable.tasks, # type: ignore
+        creation_date=db_timetable.creation_date,  # type: ignore
+        upper_week_items=valid_upper_week_items,
+        lower_week_items=valid_lower_week_items,
+        tasks=[], # type: ignore
     )
+
+
+def check_user_limit_timetables(timetables: list):
+    if len(timetables) >= 10:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user has too many timetables"
+        )

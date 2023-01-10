@@ -585,3 +585,13 @@ def delete_task_from_user(db: Session, id_timetable: int, id_task: int, user_id:
     db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id).delete()
     db.commit()
     return 'Task deleted successfully'
+
+
+def delete_ready_task_from_user(db: Session, id_timetable: int, user_id: int):
+    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
+    tasks = result.scalars().all()
+    for task in tasks:
+        db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id)\
+            .filter(models.TaskStatuses.status == "Завершено").filter(models.TaskStatuses.id_task == task).delete()
+        db.commit()
+    return 'Task deleted successfully'

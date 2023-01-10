@@ -5,7 +5,7 @@ from models import schemas
 from controllers.user import get_current_user
 from controllers.db import get_db
 from controllers.task_controller import addTask, addTaskForAll, getTaskBySubject, getAllTaskInTable,\
-    deleteTaskFromTable, get_task_by_userid, deleteTaskFromUser
+    deleteTaskFromTable, get_task_by_userid, deleteTaskFromUser, deleteReadyTaskFromUser
 
 router = APIRouter()
 
@@ -55,3 +55,11 @@ async def delete_task(id_timetable: int, id_task: int, db: Session = Depends(get
 async def delete_task(id_timetable: int, id_task: int, db: Session = Depends(get_db),
                       user: schemas.User = Depends(get_current_user)):
     return deleteTaskFromUser(id_timetable, id_task, db, user.id)
+
+
+# Delete ready task from user in timetable
+@router.delete('/task/ready/single', tags=['task'], status_code=status.HTTP_200_OK,
+               dependencies=[Depends(get_current_user)])
+async def delete_task(id_timetable: int, db: Session = Depends(get_db),
+                      user: schemas.User = Depends(get_current_user)):
+    return deleteReadyTaskFromUser(id_timetable, db, user.id)

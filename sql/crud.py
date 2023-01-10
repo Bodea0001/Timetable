@@ -71,12 +71,9 @@ def create_user_white_ip(db: Session, user_id: int | Column[Integer], white_ip: 
 
 def get_tasks_by_user_id(db: Session, user_id: int):
     result = db.execute(select(models.TimetableUser).where(models.TimetableUser.id_user == user_id))
-    tables = []
-    for res in result:
-        tables.append(res.TimetableUser.id_timetable)
     tasks = []
-    for i in tables:
-        tasks.append(get_all_tasks_in_table(db, i))
+    for res in result:
+        tasks.append(get_all_tasks_in_table(db, res.TimetableUser.id_timetable, user_id))
     return tasks
 
 

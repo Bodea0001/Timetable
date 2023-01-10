@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 import models.schemas
 from models import schemas
 from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table, delete_task_from_table, \
-    get_timetable_by_id, get_tasks_by_user_id, create_task_for_all, delete_task_from_user, delete_ready_task_from_user
+    get_timetable_by_id, get_tasks_by_user_id, create_task_for_all, delete_task_from_user, delete_ready_task_from_user,\
+    delete_ready_task_from_timetable
 
 
 def addTask(task: schemas.TaskOut, db: Session, user_id: int):
@@ -51,6 +52,11 @@ def deleteTaskFromUser(id_timetable: int, id_task: int, db: Session, user_id: in
 
 def deleteReadyTaskFromUser(id_timetable: int, db: Session, user_id: int):
     delete_ready_task_from_user(db, id_timetable, user_id)
+    return HTTPException(status_code=200, detail='Task deleted successfully')
+
+
+def deleteReadyTaskFromTimeTable(id_timetable: int, db: Session):
+    delete_ready_task_from_timetable(db, id_timetable)
     return HTTPException(status_code=200, detail='Task deleted successfully')
 
 

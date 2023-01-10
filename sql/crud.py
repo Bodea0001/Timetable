@@ -85,6 +85,41 @@ def get_task_id(subject: str, description: str, id_timetable: int, db: Session):
     return res[0].id
 
 
+def create_task_for_all(db: Session, task: schemas.TaskBase):
+    db_task = models.Task(
+        id_timetable=task.timetable_id,
+        description=task.description,
+        deadline=task.deadline,
+        subject=task.subject
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    task_id = get_task_id(task.subject, task.description, task.timetable_id, db)
+    add_user_statuses(db, task_id, task.timetable_id)
+    return db_task
+
+
+def get_users_id_in_timetable(db: Session, timetable_id: int):
+    result = db.execute(select(models.TimetableUser.id_user).where(models.TimetableUser.id_timetable == timetable_id))
+    return result
+
+
+def add_user_statuses(db: Session, task_id: int, timetable_id: int):
+    res = get_users_id_in_timetable(db, timetable_id)
+    users = res.scalars().all()
+    for user in users:
+        db_statuses = models.TaskStatuses(
+            id_task=task_id,
+            id_user=user,
+            status="В процессе"
+        )
+        db.add(db_statuses)
+        db.commit()
+        db.refresh(db_statuses)
+    return 1
+
+
 def create_task(db: Session, task: schemas.TaskOut, user_id: int):
     db_task = models.Task(
         id_timetable=task.timetable_id,

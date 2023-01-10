@@ -4,17 +4,23 @@ from sqlalchemy.orm import Session
 from models import schemas
 from controllers.user import get_current_user
 from controllers.db import get_db
-from controllers.task_controller import addTask, getTaskBySubject, getAllTaskInTable, deleteTaskFromTable, \
-    get_task_by_userid
+from controllers.task_controller import addTask, addTaskForAll, getTaskBySubject, getAllTaskInTable,\
+    deleteTaskFromTable, get_task_by_userid
 
 router = APIRouter()
 
 
-# Add new task
-@router.post("/task", tags=["task"], status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
+# Add new task for one user
+@router.post("/task/user", tags=["task"], status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
 async def create_task(task: schemas.TaskOut, db: Session = Depends(get_db),
                       user: schemas.User = Depends(get_current_user)):
     return addTask(task, db, user.id)
+
+
+# Add new task for all users in timetable
+@router.post("/task/all", tags=["task"], status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
+async def create_task_for_all(task: schemas.TaskBase, db: Session = Depends(get_db)):
+    return addTaskForAll(task, db)
 
 
 # Get tasks by subject in timetable
@@ -32,7 +38,7 @@ async def get_task_by_user_id(db: Session = Depends(get_db), user: schemas.User 
 
 
 # Get all users tasks in timetable
-@router.get('/task/single', tags=['task'], status_code=status.HTTP_200_OK,
+@router.get('/task', tags=['task'], status_code=status.HTTP_200_OK,
             dependencies=[Depends(get_current_user)])
 async def get_task(id_timetable: int, db: Session = Depends(get_db), user: schemas.User = Depends(get_current_user)):
     return getAllTaskInTable(id_timetable, db, user.id)

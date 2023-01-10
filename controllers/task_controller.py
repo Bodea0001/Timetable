@@ -4,12 +4,17 @@ from sqlalchemy.orm import Session
 import models.schemas
 from models import schemas
 from sql.crud import create_task, get_task_by_subject, get_all_tasks_in_table, delete_task_from_table, \
-    get_timetable_by_id, get_tasks_by_user_id
+    get_timetable_by_id, get_tasks_by_user_id, create_task_for_all
 
 
 def addTask(task: schemas.TaskOut, db: Session, user_id: int):
     check_task_status(task.statuses[0].status)
     create_task(db, task, user_id)
+    return HTTPException(status_code=201, detail='Task created successfully')
+
+
+def addTaskForAll(task: schemas.TaskBase, db: Session):
+    create_task_for_all(db, task)
     return HTTPException(status_code=201, detail='Task created successfully')
 
 

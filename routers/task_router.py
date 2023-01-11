@@ -13,19 +13,22 @@ from sql.crud import (
     get_timetable_user_status,
     create_task_for_all_users,
     get_user_task_relation_by_task_id,
-    get_timetable_user_relation_by_user_id_and_timetable_id,
 )
 from models import schemas
 from controllers.user import get_current_user
 from controllers.db import get_db
 from controllers.task_controller import (
     addTask,
+    addTaskForAll,
     getTaskBySubject,
     getAllTaskInTable,
-    deleteTaskFromTable, 
     get_task_by_userid,
+    deleteTaskFromUser,
+    deleteTaskFromTable, 
     validate_task_for_user,
     validate_task_for_elder,
+    deleteReadyTaskFromUser,
+    deleteReadyTaskFromTimeTable
 )
 from controllers.timetable import check_timetable
 
@@ -35,13 +38,25 @@ router = APIRouter(
 )
 
 
-# Add new  task
-@router.post("/", status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
-async def create_task(task: schemas.TaskBase, db: Session = Depends(get_db)):
-    return addTask(task, db)
+# Add new task for one user
+@router.post("/user", status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
+async def create_task(
+    task: schemas.TaskBase,
+    db: Session = Depends(get_db),
+    user: schemas.User = Depends(get_current_user)
+):
+    return addTask(task, db, user.id)
 
 
-@router.get('/subject', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
+# Add new task for all users in timetable
+@router.post("/all", status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
+async def create_task_for_all_(task: schemas.TaskBase, db: Session = Depends(get_db)):
+    return addTaskForAll(task, db)
+
+
+# Get tasks by subject in timetable
+@router.get('/task/subject', tags=['task'], status_code=status.HTTP_200_OK,
+            dependencies=[Depends(get_current_user)])
 async def get_task_by_subject(subject: str, id_timetable: int, db: Session = Depends(get_db)):
     return getTaskBySubject(subject, id_timetable, db)
 
@@ -51,15 +66,38 @@ async def get_task_by_user_id(db: Session = Depends(get_db), user: schemas.User 
     return get_task_by_userid(db, user.id)
 
 
+# Get all users tasks in timetable
 @router.get('/', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def get_task(id_timetable: int, db: Session = Depends(get_db)):
-    return getAllTaskInTable(id_timetable, db)
+async def get_task(id_timetable: int, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    return getAllTaskInTable(id_timetable, db, user.id)  # type: ignore
 
 
+# Delete task from all users in timetable
 @router.delete('/', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def delete_task(id_timetable: int, id_task: int, db: Session = Depends(get_db)):
+async def delete_task1(id_timetable: int, id_task: int, db: Session = Depends(get_db)):
     return deleteTaskFromTable(id_timetable, id_task, db)
 
+
+# Delete task from user in timetable
+@router.delete('/task/single', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
+async def delete_task2(id_timetable: int, id_task: int, db: Session = Depends(get_db),
+                      user: schemas.User = Depends(get_current_user)):
+    return deleteTaskFromUser(id_timetable, id_task, db, user.id)
+
+
+# Delete ready task from user in timetable
+@router.delete('/task/ready/single', tags=['task'], status_code=status.HTTP_200_OK,
+               dependencies=[Depends(get_current_user)])
+async def delete_task3(id_timetable: int, db: Session = Depends(get_db),
+                      user: schemas.User = Depends(get_current_user)):
+    return deleteReadyTaskFromUser(id_timetable, db, user.id)
+
+
+# Delete ready task from all users in timetable
+@router.delete('/task/ready/all', tags=['task'], status_code=status.HTTP_200_OK,
+               dependencies=[Depends(get_current_user)])
+async def delete_task(id_timetable: int, db: Session = Depends(get_db)):
+    return deleteReadyTaskFromTimeTable(id_timetable, db)
 # ---------------------------------------------
 
 @router.post(

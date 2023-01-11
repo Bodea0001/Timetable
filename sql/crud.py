@@ -76,16 +76,21 @@ def create_user_white_ip(db: Session, user_id: int | Column[Integer], white_ip: 
 
 def get_tasks_by_user_id(db: Session, user_id: int):
     result = db.execute(select(models.TimetableUser).where(models.TimetableUser.id_user == user_id))
-    tables = []
-    for res in result:
-        tables.append(res.TimetableUser.id_timetable)
     tasks = []
-    for i in tables:
-        tasks.append(get_all_tasks_in_table(db, i))
+    for res in result:
+        tasks.append(get_all_tasks_in_table(db, res.TimetableUser.id_timetable, user_id))
     return tasks
 
 
-def create_task(db: Session, task: schemas.TaskBase):
+def get_task_id(subject: str, description: str, id_timetable: int, db: Session):
+    result = db.execute(select(models.Task).where(models.Task.subject == subject). where(models.Task.id_timetable
+                                                                                         == id_timetable).
+                        where(models.Task.description == description))
+    res = result.scalars().all()
+    return res[0].id
+
+
+def create_task_for_all(db: Session, task: schemas.TaskBase):
     db_task = models.Task(
         id_timetable=task.id_timetable,
         description=task.description,
@@ -95,6 +100,50 @@ def create_task(db: Session, task: schemas.TaskBase):
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+    task_id = get_task_id(task.subject, task.description, task.timetable_id, db)
+    add_user_statuses(db, task_id, task.timetable_id)
+    return db_task
+
+
+def get_users_id_in_timetable(db: Session, timetable_id: int):
+    result = db.execute(select(models.TimetableUser.id_user).where(models.TimetableUser.id_timetable == timetable_id))
+    return result
+
+
+def add_user_statuses(db: Session, task_id: int, timetable_id: int):
+    res = get_users_id_in_timetable(db, timetable_id)
+    users = res.scalars().all()
+    for user in users:
+        db_statuses = models.TaskStatuses(
+            id_task=task_id,
+            id_user=user,
+            status="В процессе"
+        )
+        db.add(db_statuses)
+        db.commit()
+        db.refresh(db_statuses)
+    return 1
+
+
+def create_task(db: Session, task: schemas.TaskOut, user_id: int):
+    db_task = models.Task(
+        id_timetable=task.timetable_id,
+        description=task.description,
+        deadline=task.deadline,
+        subject=task.subject
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    id_task = get_task_id(task.subject, task.description, task.timetable_id, db)
+    db_statuses = models.TaskStatuses(
+        id_task=id_task,
+        id_user=user_id,
+        status=task.statuses[0].status
+    )
+    db.add(db_statuses)
+    db.commit()
+    db.refresh(db_statuses)
     return db_task
 
 
@@ -503,14 +552,68 @@ def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     return result.scalars().all()
 
 
-def get_all_tasks_in_table(db: Session, id_timetable: int):
+def get_all_tasks_in_table(db: Session, id_timetable: int, user_id: int):
     result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
-    return result.scalars().all()
+    tasks = result.scalars().all()
+    result = db.execute(select(models.TaskStatuses).where(models.TaskStatuses.id_user == user_id))
+    statuses = result.scalars().all()
+    tas = []
+    for task in tasks:
+        i = 0
+        for stat in statuses:
+            if stat.id_task == task.id:
+                i = 1
+                stats = [{
+                    "id": stat.id_task,
+                    "id_user": user_id,
+                    "status": stat.status
+                }]
+                break
+        if i == 1:
+            t = {
+                "id": task.id,
+                "timetable_id": id_timetable,
+                "description": task.description,
+                "deadline": task.deadline,
+                "subject": task.subject,
+                "statuses": stats
+            }
+            tas.append(t)
+            i = 0
+    return tas
 
 
 def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
     db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
     db.commit()
+    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == id_task).delete()
+    db.commit()
+    return 'Task deleted successfully'
+
+
+def delete_task_from_user(db: Session, id_timetable: int, id_task: int, user_id: int):
+    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id).delete()
+    db.commit()
+    return 'Task deleted successfully'
+
+
+def delete_ready_task_from_user(db: Session, id_timetable: int, user_id: int):
+    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
+    tasks = result.scalars().all()
+    for task in tasks:
+        db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id)\
+            .filter(models.TaskStatuses.status == "Завершено").filter(models.TaskStatuses.id_task == task).delete()
+        db.commit()
+    return 'Task deleted successfully'
+
+
+def delete_ready_task_from_timetable(db: Session, id_timetable: int):
+    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
+    tasks = result.scalars().all()
+    for task in tasks:
+        db.query(models.TaskStatuses).filter(models.TaskStatuses.status == "Завершено")\
+            .filter(models.TaskStatuses.id_task == task).delete()
+        db.commit()
     return 'Task deleted successfully'
 
 

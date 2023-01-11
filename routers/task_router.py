@@ -81,13 +81,7 @@ async def create_task_for_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"The current user doesn't have access rights to create the task to transmitted user in this timetable"
         )
-    
-    timetable_user_relation = get_timetable_user_relation_by_user_id_and_timetable_id(db, user_id, task.id_timetable)
-    if not timetable_user_relation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknow user"
-        )
+
     create_task_for_one_user(db, user_id, task)
 
 
@@ -125,8 +119,16 @@ async def get_timetable_tasks_for_elder(
     user: models.User = Depends(get_current_user)
 ):
     timetable = check_timetable(user, timetable_id)
+    
     user_timetable_tasks = [validate_task_for_user(task, user.id) for task in timetable.tasks]  # type: ignore
-    return [task for task in user_timetable_tasks if task]
+    user_timetable_sorted_tasks = [task for task in user_timetable_tasks if task]
+    if user_timetable_sorted_tasks:
+        return user_timetable_sorted_tasks
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tasks for the user in this timetable"
+        )
 
 
 @router.get(
@@ -150,7 +152,14 @@ async def get_user_tasks_in_timetable(
         )
 
     elder_timetable_tasks = [validate_task_for_elder(db, task) for task in timetable.tasks]  # type: ignore 
-    return [task for task in elder_timetable_tasks if task]
+    elder_timetable_sorted_tasks = [task for task in elder_timetable_tasks if task]
+    if elder_timetable_sorted_tasks:
+        return elder_timetable_sorted_tasks
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tasks for the elder in this timetable"
+        )
 
 
 @router.get(
@@ -161,16 +170,23 @@ async def get_user_tasks_in_timetable(
 )
 async def get_all_user_tasks(user: models.User = Depends(get_current_user)):
     user_tasks = [validate_task_for_user(task, user.id) for timetable in user.timetables_info for task in timetable.tasks]  # type: ignore
-    return [task for task in user_tasks if task]
+    user_sorted_tasks = [task for task in user_tasks if task]
+    if user_sorted_tasks:
+        return user_sorted_tasks
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No tasks for the user"
+        )
 
 
 @router.get(
     path="/filter",
     response_model=list[schemas.TaskOutForUser],
     status_code=status.HTTP_200_OK,
-    summary="Filter tasks in the timetable by date and subject"
+    summary="Filter tasks in the timetable by date"
 )
-async def filter_user_tasks_by_date_and_subject(
+async def filter_user_tasks_by_date(
     timetable_id: int,
     tasks_date: date,
     db: Session = Depends(get_db),

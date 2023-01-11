@@ -12,6 +12,7 @@ from controllers.timetable import (
     validate_timetable,
     get_valid_timetable,
     get_current_timetable,
+    get_valid_timetable_lite,
     check_user_limit_timetables
 )
 from sql import models
@@ -82,7 +83,7 @@ async def create_new_timetable(
     )
     create_timetable_user(db, timetable_user_relation)
 
-    return validate_timetable(db_timetable, university, specialization)
+    return validate_timetable(db_timetable, university, specialization, user.id)
 
 
 @router.get(
@@ -92,7 +93,7 @@ async def create_new_timetable(
     description="Get user's timetables user id", 
 )
 async def get_user_timetable(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    return [get_valid_timetable(db, timetable) for timetable in user.timetables_info]  # type: ignore
+    return [get_valid_timetable(db, timetable, user.id) for timetable in user.timetables_info]  # type: ignore
 
 
 @router.patch(
@@ -226,4 +227,4 @@ async def find_timetables(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Timetables not found"
         )
-    return [get_valid_timetable(db, timetable) for timetable in db_timetables] 
+    return [get_valid_timetable_lite(db, timetable) for timetable in db_timetables] 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 
 from sql import models
-from sql.crud import get_user
+from sql.crud import get_user, get_user_lite_by_id
 from models import schemas
 from models.schemas import TokenData
 from controllers.db import get_db
@@ -43,8 +43,8 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
 
 
 def get_valid_user(db: Session, user: models.User) -> schemas.UserOut:
-    timetables = [get_valid_timetable(db, db_timetable) for db_timetable in user.timetables_info]  # type: ignore
-    applications = [validate_application(application) for application in user.applications]  # type: ignore
+    timetables = [get_valid_timetable(db, db_timetable, user.id) for db_timetable in user.timetables_info]  # type: ignore
+    applications = [validate_application(db, application) for application in user.applications]  # type: ignore
     return schemas.UserOut(
         id=user.id, # type: ignore
         email=user.email, # type: ignore 
@@ -56,10 +56,13 @@ def get_valid_user(db: Session, user: models.User) -> schemas.UserOut:
     )
     
 
-def validate_application(application: models.Application) -> schemas.Application:
-    return schemas.Application(
+def validate_application(db: Session, application: models.Application) -> schemas.ApplicationOut:
+    user_email, user_first_name, user_last_name = get_user_lite_by_id(db, application.id_user)  # type: ignore
+    return schemas.ApplicationOut(
         id=application.id,  # type: ignore
-        id_user=application.id_user,  # type: ignore
+        user_email=user_email,  # type: ignore
+        user_first_name=user_first_name,  # type: ignore
+        user_last_name=user_last_name,  # type: ignore
         id_timetable=application.id_timetable,  # type: ignore
         creation_date=application.creation_date  #type: ignore
     )

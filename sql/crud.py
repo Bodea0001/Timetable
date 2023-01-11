@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, cast, Date
+from datetime import date, datetime
 
 from sql import models
 from models import schemas
@@ -8,6 +9,10 @@ from models import schemas
 
 def get_user(db: Session, username: str | Column[String]) -> models.User | None:
     return db.query(models.User).filter(models.User.email == username).first()
+
+
+def get_user_lite_by_id(db: Session, user_id: int | Column[Integer]) -> tuple[Column[String], Column[String], Column[String]] | None:
+    return db.query(models.User.email, models.User.first_name, models.User.last_name).filter(models.User.id == user_id).first()
 
 
 def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.UserUpdate):
@@ -82,7 +87,7 @@ def get_tasks_by_user_id(db: Session, user_id: int):
 
 def create_task(db: Session, task: schemas.TaskBase):
     db_task = models.Task(
-        id_timetable=task.timetable_id,
+        id_timetable=task.id_timetable,
         description=task.description,
         deadline=task.deadline,
         subject=task.subject
@@ -389,18 +394,20 @@ def delete_lower_day_subject(db: Session, subject_id: int | Column[Integer]):
     db.commit()
 
 
-def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses:
-    return db.query(models.TimetableUser.status).filter(
+def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses | None:
+    status = db.query(models.TimetableUser.status).filter(
         models.TimetableUser.id_user == user_id,
         models.TimetableUser.id_timetable == timetable_id,
-        ).first()[0] # type: ignore
+        ).first()
+    return status[0] if status else None
 
 
 def get_timetable_elder(db: Session, timetable_id: int | Column[Integer]) -> int | None:
-    return db.query(models.TimetableUser.id_user).filter(
+    status =  db.query(models.TimetableUser.id_user).filter(
         models.TimetableUser.id_timetable == timetable_id,
         models.TimetableUser.status == schemas.TimetableUserStatuses.elder
-    ).first()[0]  # type: ignore
+    ).first()
+    return status[0] if status else None
 
 
 def create_application(db: Session, user_id: int| Column[Integer], timetable_id: int | Column[Integer]):
@@ -428,6 +435,9 @@ def get_timetable_user_relation_by_user_id_and_timetable_id(
         models.TimetableUser.id_timetable == timetable_id,
         ).first()
 
+def get_timetable_users_id(db: Session, timetable_id: int | Column[Integer]) -> list[int]:
+    users_id = db.query(models.TimetableUser.id_user).filter(models.TimetableUser.id_timetable == timetable_id).all()
+    return [user_id[0] for user_id in users_id]
 
 def create_timetable_user_relation(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]):
     timetable_user_relation = models.TimetableUser(
@@ -502,3 +512,105 @@ def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
     db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
     db.commit()
     return 'Task deleted successfully'
+
+
+def create_task_for_one_user(db: Session, user_id: int | Column[Integer], task: schemas.TaskBase):
+    db_task = models.Task(
+        id_timetable = task.id_timetable,
+        description = task.description,
+        subject = task.subject,
+        deadline = task.deadline,
+        tag = schemas.TaskTags.one
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    create_task_user_status(db, db_task.id, user_id)
+
+
+def create_task_for_all_users(db: Session, users_id: list[int] | list[Column[Integer]], task: schemas.TaskBase):
+    db_task = models.Task(
+        id_timetable = task.id_timetable,
+        description = task.description,
+        subject = task.subject,
+        deadline = task.deadline,
+        tag = schemas.TaskTags.all
+    )
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    for user_id in users_id:
+        create_task_user_status(db, db_task.id, user_id)
+
+
+def create_task_user_status(db: Session, task_id: int | Column[Integer], user_id: int | Column[Integer]):
+    db_task_user_status = models.TaskStatuses(
+        id_task = task_id,
+        id_user = user_id,
+        status = schemas.TaskStatusesEnum.in_progress
+    )
+    db.add(db_task_user_status)
+    db.commit()
+
+
+def update_task_user_status(
+    db: Session,
+    task_id: int | Column[Integer],
+    user_id: int | Column[Integer],
+    status: schemas.TaskStatusesEnum
+):
+    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == task_id, models.TaskStatuses.id_user == user_id,).update(
+        {
+            models.TaskStatuses.status: status
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def update_task_info(
+    db: Session,
+    task_id: int | Column[Integer],
+    description: str | Column[String],
+    subject:  str | Column[String],
+    deadline:  datetime,
+):
+    db.query(models.Task).filter(models.Task.id == task_id).update(
+        {
+            models.Task.description: description,
+            models.Task.subject: subject,
+            models.Task.deadline: deadline,
+        },
+        synchronize_session=False
+    )
+    db.commit()
+
+
+def get_user_task_relation_by_task_id(
+    db: Session,
+    task_id: int | Column[Integer],
+    user_id : int | Column[Integer]
+) -> models.TaskStatuses | None:
+    return db.query(models.TaskStatuses).filter(
+        models.TaskStatuses.id_task == task_id,
+        models.TaskStatuses.id_user == user_id
+    ).first()
+
+
+def get_task_by_id(db: Session, task_id: int | Column[Integer]) -> models.Task | None:
+    return db.query(models.Task).filter(models.Task.id == task_id).first()
+
+
+def get_tasks_by_date(
+    db: Session,
+    timetable_id: int | Column[Integer], 
+    tasks_date: date,
+    user_id: int | Column[Integer]
+) -> list[models.Task] | None:
+    return db.query(models.Task).join(
+        models.TaskStatuses,
+        models.TaskStatuses.id_user == user_id
+    ).filter(
+        models.Task.id_timetable == timetable_id,
+        cast(models.Task.deadline, Date) == tasks_date,
+    ).all()

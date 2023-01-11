@@ -20,7 +20,7 @@ from models import schemas
 
 
 def addTask(task: schemas.TaskBase, db: Session, user_id: int):
-    check_task_status(task.statuses[0].status)
+    check_task_status(task.statuses[0].status)  # type: ignore
     create_task(db, task, user_id)
     return HTTPException(status_code=201, detail='Task created successfully')
 

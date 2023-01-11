@@ -100,8 +100,8 @@ def create_task_for_all(db: Session, task: schemas.TaskBase):
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    task_id = get_task_id(task.subject, task.description, task.timetable_id, db)
-    add_user_statuses(db, task_id, task.timetable_id)
+    task_id = get_task_id(task.subject, task.description, task.id_timetable, db)
+    add_user_statuses(db, task_id, task.id_timetable)
     return db_task
 
 
@@ -125,9 +125,9 @@ def add_user_statuses(db: Session, task_id: int, timetable_id: int):
     return 1
 
 
-def create_task(db: Session, task: schemas.TaskOut, user_id: int):
+def create_task(db: Session, task: schemas.TaskBase, user_id: int):
     db_task = models.Task(
-        id_timetable=task.timetable_id,
+        id_timetable=task.id_timetable,
         description=task.description,
         deadline=task.deadline,
         subject=task.subject
@@ -135,11 +135,11 @@ def create_task(db: Session, task: schemas.TaskOut, user_id: int):
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    id_task = get_task_id(task.subject, task.description, task.timetable_id, db)
+    id_task = get_task_id(task.subject, task.description, task.id_timetable, db)
     db_statuses = models.TaskStatuses(
         id_task=id_task,
         id_user=user_id,
-        status=task.statuses[0].status
+        status=schemas.TaskStatusesEnum.in_progress
     )
     db.add(db_statuses)
     db.commit()
@@ -576,7 +576,7 @@ def get_all_tasks_in_table(db: Session, id_timetable: int, user_id: int):
                 "description": task.description,
                 "deadline": task.deadline,
                 "subject": task.subject,
-                "statuses": stats
+                "statuses": stats  # type: ignore
             }
             tas.append(t)
             i = 0

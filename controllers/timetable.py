@@ -13,6 +13,7 @@ from sql.crud import (
     )
 from models import schemas
 from controllers.week import validate_upper_week_items, validate_lower_week_items
+from controllers.task_controller import validate_task_for_user
 
 def check_university(db: Session, university_name: str) -> models.University:
     university = get_university(db, university_name)
@@ -78,7 +79,7 @@ def check_course(course: int, education_level: schemas.Education_level | None = 
         )
 
 
-def check_timetable(user: models.User, timetable_id) -> schemas.TimetableOut:
+def check_timetable(user: models.User, timetable_id: int | Column[Integer]) -> schemas.TimetableOut:
     timetable = None
     for user_timetable in user.timetables_info:  # type: ignore
         if timetable_id == user_timetable.id:
@@ -101,10 +102,10 @@ def get_current_timetable(db: Session, name: str, user_id: int | Column[Integer]
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Timetable {name} was not found"
         )
-    return get_valid_timetable(db, db_timetable)
+    return get_valid_timetable(db, db_timetable, user_id)
 
 
-def get_valid_timetable(db: Session, db_timetable: models.Timetable) -> schemas.TimetableOut:
+def get_valid_timetable(db: Session, db_timetable: models.Timetable, user_id: int | Column[Integer]) -> schemas.TimetableOut:
     university = get_university_by_id(db, db_timetable.id_university)  # type: ignore
     if not university:
         raise HTTPException(
@@ -119,16 +120,19 @@ def get_valid_timetable(db: Session, db_timetable: models.Timetable) -> schemas.
             detail="The specialization was not found, change the specialization from the timetable"
         )
 
-    return validate_timetable(db_timetable, university, specialization)
+    return validate_timetable(db_timetable, university, specialization, user_id)
   
 
 def validate_timetable(
     db_timetable: models.Timetable,
     university: models.University,
-    specialization: models.Specialization
+    specialization: models.Specialization,
+    user_id: int | Column[Integer]
     ) -> schemas.TimetableOut:
     valid_upper_week_items = validate_upper_week_items(db_timetable.upper_week_items)  # type: ignore
     valid_lower_week_items = validate_lower_week_items(db_timetable.lower_week_items)  # type: ignore
+    valid_tasks = [validate_task_for_user(task, user_id) for task in db_timetable.tasks]  # type: ignore
+    valid_sort_tasks = [task for task in valid_tasks if task]
     return schemas.TimetableOut(
         id=db_timetable.id, # type: ignore
         name=db_timetable.name, # type: ignore
@@ -140,7 +144,42 @@ def validate_timetable(
         creation_date=db_timetable.creation_date,  # type: ignore
         upper_week_items=valid_upper_week_items,
         lower_week_items=valid_lower_week_items,
-        tasks=[], # type: ignore
+        tasks=valid_sort_tasks, # type: ignore
+    )
+
+
+def get_valid_timetable_lite(db: Session, db_timetable: models.Timetable) -> schemas.TimetableOut:
+    university = get_university_by_id(db, db_timetable.id_university)  # type: ignore
+    if not university:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The university was not found, change the university from the timetable"
+        )
+    
+    specialization = get_specialization_by_id(db, db_timetable.id_specialization) #type: ignore
+    if not specialization:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The specialization was not found, change the specialization from the timetable"
+        )
+
+    return validate_timetable_lite(db_timetable, university, specialization)
+
+
+def validate_timetable_lite(
+    db_timetable: models.Timetable,
+    university: models.University,
+    specialization: models.Specialization,
+    ) -> schemas.TimetableOut:
+    return schemas.TimetableOut(
+        id=db_timetable.id, # type: ignore
+        name=db_timetable.name, # type: ignore
+        university=university.name, #type: ignore
+        specialization_name=specialization.name, #type: ignore
+        specialization_code=specialization.code, #type: ignore
+        education_level=specialization.education_level, # type: ignore
+        course=db_timetable.course, # type: ignore
+        creation_date=db_timetable.creation_date,  # type: ignore
     )
 
 

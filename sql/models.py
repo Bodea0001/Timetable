@@ -76,6 +76,8 @@ class Task(Base):  # type: ignore
     description = Column(Text, nullable=False)
     subject = Column(String(150))
     deadline = Column(DateTime, nullable=False)
+    tag = Column(String(20), nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
 
     statuses = relationship("TaskStatuses", cascade="all, delete")
 

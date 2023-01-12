@@ -56,8 +56,7 @@ class TaskStatuses(TaskStatusesBase):
 
 # Task Base Nodel
 class TaskBase(BaseModel):
-    id: int
-    timetable_id: int
+    id_timetable: int
     description: str
     deadline: datetime
     subject: str
@@ -66,13 +65,41 @@ class TaskBase(BaseModel):
         orm_mode = True
 
 
+class TaskTags(str, Enum):
+    one = "один"
+    all = "все"
+
+
+class TaskUpdate(TaskBase):
+    id: int
+
+    
 # Task Out Model inherit from TaskBase
-class TaskOut(TaskBase):
-    statuses: list[TaskStatusesBase]
+class TaskOutForUser(TaskBase):
+    id: int
+    tag: TaskTags
+    status: TaskStatusesEnum
+    creation_date: datetime
+
+
+class TaskStatusesOut(TaskStatusesBase):
+    user_email: EmailStr
+    user_first_name: str
+    user_last_name: str
+
+
+class TaskOutForElder(TaskBase):
+    id: int
+    tag: TaskTags
+    statuses: list[TaskStatusesOut]
+    creation_date: datetime
 
 
 class Task(TaskBase):
+    id: int
+    tag: TaskTags
     statuses: list[TaskStatuses]
+    creation_date: datetime
 
 
 class Day(str, Enum):
@@ -171,7 +198,7 @@ class TimetableOut(TimetableOutLite):
     
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
-    tasks: list[Task]
+    tasks: list[TaskOutForUser]
 
 
 class Timetable(TimetableBase):
@@ -210,6 +237,12 @@ class Application(ApplicationBase):
     id_user: int
 
 
+class ApplicationOut(ApplicationBase):
+    user_email: str
+    user_first_name: str
+    user_last_name: str
+
+
 class UserUpdate(BaseModel):
     first_name: str
     last_name: str
@@ -234,7 +267,7 @@ class UserOutLite(UserBase):
 class UserOut(UserBase):
     id: int
     tg_username: str | None
-    applications: list[ApplicationBase]
+    applications: list[ApplicationOut]
     timetables_info: list[TimetableOut]
 
 

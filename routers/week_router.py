@@ -1,6 +1,6 @@
 from datetime import time
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, status, Depends, Form, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException
 
 from models import schemas
 from sql import models
@@ -25,7 +25,8 @@ from sql.crud import (
 from controllers.db import get_db
 from controllers.user import get_current_user
 from controllers.week import (
-    check_days, check_time,
+    check_days,
+    check_time,
     check_week_and_subject_ids,
     check_day_in_timetable,
     check_subject_id_in_timetable,
@@ -85,7 +86,7 @@ async def create_weekly_timetable(
         create_lower_weekly_timetable(db, timetable_id, weekly_timetable)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable)
+    return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.post(
@@ -107,7 +108,7 @@ async def create_daily_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to create daily timetable"
         )
 
     if week_name == schemas.WeekName.UPPER and timetable.upper_week_items:
@@ -134,7 +135,7 @@ async def create_daily_timetable(
         create_lower_week_day(db, timetable_id, daily_timetable)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable)
+    return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.post(
@@ -157,7 +158,7 @@ async def create_subject_in_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to create a subject in the timetable"
         )
 
     submitted_day = check_day_in_timetable(week_name, day_id, timetable)
@@ -174,7 +175,7 @@ async def create_subject_in_timetable(
         create_lower_day_subject(db, day_id, daily_subject)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable)
+    return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.patch(
@@ -196,7 +197,7 @@ async def update_weekly_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to update weekly timetable"
         )
 
     if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
@@ -227,7 +228,7 @@ async def update_weekly_timetable(
         update_lower_weekly_timetable(db, weekly_timetable)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable)
+    return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.delete(
@@ -247,7 +248,7 @@ async def delete_weekly_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to delete weekly timetable"
         )
 
     if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
@@ -281,7 +282,7 @@ async def delete_daily_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to delete daily timetable"
         )
 
     if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
@@ -317,7 +318,7 @@ async def delete_subject_in_timetable(
     if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
+            detail=f"The user doesn't have access rights to delete subject in the timetable"
         )
 
     if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \

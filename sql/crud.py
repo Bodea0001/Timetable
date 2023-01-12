@@ -26,6 +26,16 @@ def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.
     db.commit()  
 
 
+def update_user_password(db: Session, user_id: int | Column[Integer], new_password: str | Column[String]):
+    db.query(models.User).filter(models.User.id == user_id).update(
+        {
+            models.User.password: new_password
+        },
+        synchronize_session=False
+        )
+    db.commit()  
+
+
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     db_user = models.User(
         email=user.email,
@@ -72,6 +82,25 @@ def create_user_white_ip(db: Session, user_id: int | Column[Integer], white_ip: 
     db.commit()
     db.refresh(db_user_white_ip)
     return db_user_white_ip
+
+
+def create_password_change_request(db: Session, email: str, new_password: str):
+    password_change_request = models.PassChangeRequest(
+        email = email,
+        new_password = new_password
+    )
+    db.add(password_change_request)
+    db.commit()
+    db.refresh(password_change_request)
+    return password_change_request
+
+
+def get_password_change_request_by_id(db: Session, id: int | Column[Integer]) -> models.PassChangeRequest | None:
+    return db.query(models.PassChangeRequest).filter(models.PassChangeRequest.id == id).first()
+
+
+def delete_password_change_request(db: Session, id: int | Column[Integer]):
+    db.query(models.PassChangeRequest).filter(models.PassChangeRequest.id == id).delete()
 
 
 def get_tasks_by_user_id(db: Session, user_id: int):

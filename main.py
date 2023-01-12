@@ -11,6 +11,7 @@ from routers import (
     refresh_router,
     timetable_router,
     application_router,
+    credentials_change_router,
 )
 
 
@@ -27,3 +28,4 @@ app.include_router(logout_router.router)
 app.include_router(refresh_router.router)
 app.include_router(timetable_router.router)
 app.include_router(application_router.router)
+app.include_router(credentials_change_router.router)

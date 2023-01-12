@@ -11,8 +11,10 @@ def get_user(db: Session, username: str | Column[String]) -> models.User | None:
     return db.query(models.User).filter(models.User.email == username).first()
 
 
-def get_user_lite_by_id(db: Session, user_id: int | Column[Integer]) -> tuple[Column[String], Column[String], Column[String]] | None:
-    return db.query(models.User.email, models.User.first_name, models.User.last_name).filter(models.User.id == user_id).first()
+def get_user_lite_by_id(db: Session, user_id: int | Column[Integer]) -> tuple[Column[String], Column[String], Column[
+    String]] | None:
+    return db.query(models.User.email, models.User.first_name, models.User.last_name).filter(
+        models.User.id == user_id).first()
 
 
 def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.UserUpdate):
@@ -22,8 +24,8 @@ def update_user(db: Session, user_id: int | Column[Integer], user_data: schemas.
             models.User.last_name: user_data.last_name,
         },
         synchronize_session=False
-        )
-    db.commit()  
+    )
+    db.commit()
 
 
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:
@@ -39,10 +41,11 @@ def create_user(db: Session, user: schemas.UserCreate) -> models.User:
     return db_user
 
 
-def create_user_refresh_token(db: Session, user_id: int | Column[Integer], refresh_token: str | Column[String]) -> models.UserRefreshToken:
+def create_user_refresh_token(db: Session, user_id: int | Column[Integer],
+                              refresh_token: str | Column[String]) -> models.UserRefreshToken:
     db_user_refresh_token = models.UserRefreshToken(
-        id_user = user_id,
-        refresh_token = refresh_token
+        id_user=user_id,
+        refresh_token=refresh_token
     )
     db.add(db_user_refresh_token)
     db.commit()
@@ -54,7 +57,7 @@ def delete_user_refresh_token(db: Session, user_id: int | Column[Integer], refre
     db.query(models.UserRefreshToken).filter(
         models.UserRefreshToken.id_user == user_id,
         models.UserRefreshToken.refresh_token == refresh_token
-        ).delete()
+    ).delete()
     db.commit()
 
 
@@ -63,10 +66,11 @@ def delete_all_user_refresh_token(db: Session, user_id: int | Column[Integer]):
     db.commit()
 
 
-def create_user_white_ip(db: Session, user_id: int | Column[Integer], white_ip: str | Column[String]) -> models.UserWhiteIP:
+def create_user_white_ip(db: Session, user_id: int | Column[Integer],
+                         white_ip: str | Column[String]) -> models.UserWhiteIP:
     db_user_white_ip = models.UserWhiteIP(
-        id_user = user_id,
-        white_ip = white_ip
+        id_user=user_id,
+        white_ip=white_ip
     )
     db.add(db_user_white_ip)
     db.commit()
@@ -76,21 +80,16 @@ def create_user_white_ip(db: Session, user_id: int | Column[Integer], white_ip: 
 
 def get_tasks_by_user_id(db: Session, user_id: int):
     result = db.execute(select(models.TimetableUser).where(models.TimetableUser.id_user == user_id))
-    tasks = []
+    tables = []
     for res in result:
-        tasks.append(get_all_tasks_in_table(db, res.TimetableUser.id_timetable, user_id))
+        tables.append(res.TimetableUser.id_timetable)
+    tasks = []
+    for i in tables:
+        tasks.append(get_all_tasks_in_table(db, i))
     return tasks
 
 
-def get_task_id(subject: str, description: str, id_timetable: int, db: Session):
-    result = db.execute(select(models.Task).where(models.Task.subject == subject). where(models.Task.id_timetable
-                                                                                         == id_timetable).
-                        where(models.Task.description == description))
-    res = result.scalars().all()
-    return res[0].id
-
-
-def create_task_for_all(db: Session, task: schemas.TaskBase):
+def create_task(db: Session, task: schemas.TaskBase):
     db_task = models.Task(
         id_timetable=task.id_timetable,
         description=task.description,
@@ -100,61 +99,17 @@ def create_task_for_all(db: Session, task: schemas.TaskBase):
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    task_id = get_task_id(task.subject, task.description, task.timetable_id, db)
-    add_user_statuses(db, task_id, task.timetable_id)
-    return db_task
-
-
-def get_users_id_in_timetable(db: Session, timetable_id: int):
-    result = db.execute(select(models.TimetableUser.id_user).where(models.TimetableUser.id_timetable == timetable_id))
-    return result
-
-
-def add_user_statuses(db: Session, task_id: int, timetable_id: int):
-    res = get_users_id_in_timetable(db, timetable_id)
-    users = res.scalars().all()
-    for user in users:
-        db_statuses = models.TaskStatuses(
-            id_task=task_id,
-            id_user=user,
-            status="В процессе"
-        )
-        db.add(db_statuses)
-        db.commit()
-        db.refresh(db_statuses)
-    return 1
-
-
-def create_task(db: Session, task: schemas.TaskOut, user_id: int):
-    db_task = models.Task(
-        id_timetable=task.timetable_id,
-        description=task.description,
-        deadline=task.deadline,
-        subject=task.subject
-    )
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    id_task = get_task_id(task.subject, task.description, task.timetable_id, db)
-    db_statuses = models.TaskStatuses(
-        id_task=id_task,
-        id_user=user_id,
-        status=task.statuses[0].status
-    )
-    db.add(db_statuses)
-    db.commit()
-    db.refresh(db_statuses)
     return db_task
 
 
 def get_timetables(
-    db: Session,
-    timetable_name: str | Column[String],
-    university_id: int | Column[Integer],
-    specialization_id: int | Column[Integer],
-    course: int | Column[Integer],
-    skip: int,
-    limit: int,
+        db: Session,
+        timetable_name: str | Column[String],
+        university_id: int | Column[Integer],
+        specialization_id: int | Column[Integer],
+        course: int | Column[Integer],
+        skip: int,
+        limit: int,
 ) -> list[models.Timetable] | None:
     return db.query(models.Timetable).filter(
         models.Timetable.name == timetable_name,
@@ -165,14 +120,14 @@ def get_timetables(
 
 
 def get_timetable_by_name_and_user_id(
-    db: Session,
-    timetable_name: str | Column[String],
-    user_id: int | Column[Integer],
-    ) -> models.Timetable | None:
+        db: Session,
+        timetable_name: str | Column[String],
+        user_id: int | Column[Integer],
+) -> models.Timetable | None:
     return db.query(models.Timetable).join(
         models.TimetableUser,
         models.TimetableUser.id_user == user_id
-        ).filter(models.Timetable.name == timetable_name).first()
+    ).filter(models.Timetable.name == timetable_name).first()
 
 
 def get_timetable_by_id(db: Session, timetable_id: int | Column[Integer]) -> models.Timetable | None:
@@ -180,12 +135,12 @@ def get_timetable_by_id(db: Session, timetable_id: int | Column[Integer]) -> mod
 
 
 def get_timetable_by_name_university_id_specialization_id_course(
-    db: Session,
-    name: str | Column[String],
-    university_id: int | Column[Integer],
-    specialization_id: int | Column[Integer],
-    course: int | Column[Integer],
-    ) -> models.Timetable | None:
+        db: Session,
+        name: str | Column[String],
+        university_id: int | Column[Integer],
+        specialization_id: int | Column[Integer],
+        course: int | Column[Integer],
+) -> models.Timetable | None:
     return db.query(models.Timetable).filter(
         models.Timetable.name == name,
         models.Timetable.id_university == university_id,
@@ -204,10 +159,10 @@ def get_timetables_id_where_user_is_elder(db: Session, user_id: int | Column[Int
 
 def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.Timetable:
     db_timetable = models.Timetable(
-        name = timetable.name,
-        id_university = timetable.id_university,
-        id_specialization = timetable.id_specialization,
-        course = timetable.course,
+        name=timetable.name,
+        id_university=timetable.id_university,
+        id_specialization=timetable.id_specialization,
+        course=timetable.course,
     )
     db.add(db_timetable)
     db.commit()
@@ -217,9 +172,9 @@ def create_timetable(db: Session, timetable: schemas.TimetableCreate) -> models.
 
 def create_timetable_user(db: Session, timetable_user_relation: schemas.TimetableUserCreate):
     db_timetable_user_relation = models.TimetableUser(
-        id_user = timetable_user_relation.id_user,
-        id_timetable = timetable_user_relation.id_timetable,
-        status = timetable_user_relation.status
+        id_user=timetable_user_relation.id_user,
+        id_timetable=timetable_user_relation.id_timetable,
+        status=timetable_user_relation.status
     )
     db.add(db_timetable_user_relation)
     db.commit()
@@ -234,23 +189,23 @@ def get_university_by_id(db: Session, university_id: int | Column[Integer]) -> m
 
 
 def get_specialization_by_name(
-    db: Session,
-    specialization_name: str | Column[String],
-    education_level: schemas.Education_level
+        db: Session,
+        specialization_name: str | Column[String],
+        education_level: schemas.Education_level
 ) -> models.Specialization | None:
     return db.query(models.Specialization).filter(
         models.Specialization.name == specialization_name,
         models.Specialization.education_level == education_level,
-        ).first()
+    ).first()
 
 
 def get_specialization_by_code(
-    db: Session,
-    specialization_code: str | Column[String],
+        db: Session,
+        specialization_code: str | Column[String],
 ) -> models.Specialization | None:
     return db.query(models.Specialization).filter(
         models.Specialization.code == specialization_code,
-        ).first()
+    ).first()
 
 
 def get_specialization_by_id(db: Session, specialization_id: int | Column[Integer]) -> models.Specialization | None:
@@ -258,18 +213,18 @@ def get_specialization_by_id(db: Session, specialization_id: int | Column[Intege
 
 
 def create_upper_weekly_timetable(
-    db: Session, 
-    timetable_id: int | Column[Integer], 
-    upper_weekly_timetable: list[schemas.WeekCreate]
-    ):
+        db: Session,
+        timetable_id: int | Column[Integer],
+        upper_weekly_timetable: list[schemas.WeekCreate]
+):
     for upper_daily_timetable in upper_weekly_timetable:
         create_upper_week_day(db, timetable_id, upper_daily_timetable)
-    
+
 
 def create_upper_week_day(
-    db: Session, 
-    timetable_id: int | Column[Integer], 
-    upper_daily_timetable: schemas.WeekCreate
+        db: Session,
+        timetable_id: int | Column[Integer],
+        upper_daily_timetable: schemas.WeekCreate
 ):
     upper_day = create_day_in_upper_week(db, timetable_id, upper_daily_timetable.day)
     for upper_day_subject in upper_daily_timetable.subjects:
@@ -278,8 +233,8 @@ def create_upper_week_day(
 
 def create_day_in_upper_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.UpperWeek:
     db_upper_week = models.UpperWeek(
-        id_timetable = timetable_id,
-        day = day,
+        id_timetable=timetable_id,
+        day=day,
     )
     db.add(db_upper_week)
     db.commit()
@@ -288,15 +243,15 @@ def create_day_in_upper_week(db: Session, timetable_id: int | Column[Integer], d
 
 
 def create_upper_day_subject(
-    db: Session,
-    upper_day_id: int | Column[Integer],
-    upper_day_subject: schemas.DaySubjectsBase
+        db: Session,
+        upper_day_id: int | Column[Integer],
+        upper_day_subject: schemas.DaySubjectsBase
 ):
     db_upper_day_subject = models.UpperDaySubjects(
-        id_upper_week = upper_day_id,
-        subject = upper_day_subject.subject,
-        start_time = upper_day_subject.start_time,
-        end_time = upper_day_subject.end_time
+        id_upper_week=upper_day_id,
+        subject=upper_day_subject.subject,
+        start_time=upper_day_subject.start_time,
+        end_time=upper_day_subject.end_time
     )
     db.add(db_upper_day_subject)
     db.commit()
@@ -320,8 +275,8 @@ def update_day_in_upper_week(db: Session, day: schemas.Day, day_id: int | Column
 
 
 def update_upper_day_subject(
-    db: Session,
-    upper_day_subject: schemas.DaySubjects
+        db: Session,
+        upper_day_subject: schemas.DaySubjects
 ):
     db.query(models.UpperDaySubjects).filter(models.UpperDaySubjects.id == upper_day_subject.id).update(
         {
@@ -350,18 +305,18 @@ def delete_upper_day_subject(db: Session, subject_id: int | Column[Integer]):
 
 
 def create_lower_weekly_timetable(
-    db: Session, 
-    timetable_id: int | Column[Integer], 
-    lower_weekly_timetable: list[schemas.WeekCreate]
-    ):
+        db: Session,
+        timetable_id: int | Column[Integer],
+        lower_weekly_timetable: list[schemas.WeekCreate]
+):
     for lower_daily_timetable in lower_weekly_timetable:
         create_lower_week_day(db, timetable_id, lower_daily_timetable)
-    
+
 
 def create_lower_week_day(
-    db: Session, 
-    timetable_id: int | Column[Integer], 
-    lower_daily_timetable: schemas.WeekCreate
+        db: Session,
+        timetable_id: int | Column[Integer],
+        lower_daily_timetable: schemas.WeekCreate
 ):
     lower_day = create_day_in_lower_week(db, timetable_id, lower_daily_timetable.day)
     for lower_day_subject in lower_daily_timetable.subjects:
@@ -370,8 +325,8 @@ def create_lower_week_day(
 
 def create_day_in_lower_week(db: Session, timetable_id: int | Column[Integer], day: schemas.Day) -> models.LowerWeek:
     db_lower_week = models.LowerWeek(
-        id_timetable = timetable_id,
-        day = day,
+        id_timetable=timetable_id,
+        day=day,
     )
     db.add(db_lower_week)
     db.commit()
@@ -380,15 +335,15 @@ def create_day_in_lower_week(db: Session, timetable_id: int | Column[Integer], d
 
 
 def create_lower_day_subject(
-    db: Session,
-    lower_day_id: int | Column[Integer],
-    lower_day_subject: schemas.DaySubjectsBase
-    ) -> models.UpperDaySubjects:
+        db: Session,
+        lower_day_id: int | Column[Integer],
+        lower_day_subject: schemas.DaySubjectsBase
+) -> models.UpperDaySubjects:
     db_lower_day_subject = models.LowerDaySubjects(
-        id_lower_week = lower_day_id,
-        subject = lower_day_subject.subject,
-        start_time = lower_day_subject.start_time,
-        end_time = lower_day_subject.end_time
+        id_lower_week=lower_day_id,
+        subject=lower_day_subject.subject,
+        start_time=lower_day_subject.start_time,
+        end_time=lower_day_subject.end_time
     )
     db.add(db_lower_day_subject)
     db.commit()
@@ -414,8 +369,8 @@ def update_day_in_lower_week(db: Session, day: schemas.Day, day_id: int | Column
 
 
 def update_lower_day_subject(
-    db: Session,
-    lower_day_subject: schemas.DaySubjects
+        db: Session,
+        lower_day_subject: schemas.DaySubjects
 ):
     db.query(models.LowerDaySubjects).filter(models.LowerDaySubjects.id == lower_day_subject.id).update(
         {
@@ -443,56 +398,60 @@ def delete_lower_day_subject(db: Session, subject_id: int | Column[Integer]):
     db.commit()
 
 
-def get_timetable_user_status(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses | None:
+def get_timetable_user_status(db: Session, user_id: int | Column[Integer],
+                              timetable_id: int | Column[Integer]) -> schemas.TimetableUserStatuses | None:
     status = db.query(models.TimetableUser.status).filter(
         models.TimetableUser.id_user == user_id,
         models.TimetableUser.id_timetable == timetable_id,
-        ).first()
+    ).first()
     return status[0] if status else None
 
 
 def get_timetable_elder(db: Session, timetable_id: int | Column[Integer]) -> int | None:
-    status =  db.query(models.TimetableUser.id_user).filter(
+    status = db.query(models.TimetableUser.id_user).filter(
         models.TimetableUser.id_timetable == timetable_id,
         models.TimetableUser.status == schemas.TimetableUserStatuses.elder
     ).first()
     return status[0] if status else None
 
 
-def create_application(db: Session, user_id: int| Column[Integer], timetable_id: int | Column[Integer]):
+def create_application(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]):
     application = models.Application(
-        id_user = user_id,
-        id_timetable = timetable_id
+        id_user=user_id,
+        id_timetable=timetable_id
     )
     db.add(application)
     db.commit()
 
 
-def get_timetable_users_relation_by_user_id(db: Session, user_id: int | Column[Integer]) -> list[models.TimetableUser] | list[None]:
+def get_timetable_users_relation_by_user_id(db: Session, user_id: int | Column[Integer]) -> list[models.TimetableUser] | \
+                                                                                            list[None]:
     return db.query(models.TimetableUser).filter(
         models.TimetableUser.id_user == user_id,
-        ).all()
+    ).all()
 
 
 def get_timetable_user_relation_by_user_id_and_timetable_id(
-    db: Session, 
-    user_id: int | Column[Integer], 
-    timetable_id: int | Column[Integer]
+        db: Session,
+        user_id: int | Column[Integer],
+        timetable_id: int | Column[Integer]
 ) -> models.TimetableUser | None:
     return db.query(models.TimetableUser).filter(
         models.TimetableUser.id_user == user_id,
         models.TimetableUser.id_timetable == timetable_id,
-        ).first()
+    ).first()
+
 
 def get_timetable_users_id(db: Session, timetable_id: int | Column[Integer]) -> list[int]:
     users_id = db.query(models.TimetableUser.id_user).filter(models.TimetableUser.id_timetable == timetable_id).all()
     return [user_id[0] for user_id in users_id]
 
+
 def create_timetable_user_relation(db: Session, user_id: int | Column[Integer], timetable_id: int | Column[Integer]):
     timetable_user_relation = models.TimetableUser(
-        id_user = user_id,
-        id_timetable = timetable_id,
-        status = schemas.TimetableUserStatuses.user,
+        id_user=user_id,
+        id_timetable=timetable_id,
+        status=schemas.TimetableUserStatuses.user,
     )
     db.add(timetable_user_relation)
     db.commit()
@@ -505,17 +464,19 @@ def delete_timetable_user_relation(db: Session, user_id: int | Column[Integer], 
     ).delete()
     db.commit()
 
-    
+
 def get_application_by_id(db: Session, application_id: int | Column[Integer]) -> models.Application | None:
-    return db.query(models.Application).filter(models.Application.id ==application_id).first()
+    return db.query(models.Application).filter(models.Application.id == application_id).first()
 
 
-def get_applications_by_timetable_id(db: Session, timetable_id: int | Column[Integer]) -> list[models.Application] | list[None]:
+def get_applications_by_timetable_id(db: Session, timetable_id: int | Column[Integer]) -> list[models.Application] | \
+                                                                                          list[None]:
     return db.query(models.Application).filter(models.Application.id_timetable == timetable_id).all()
 
+
 def get_application_by_user_id_and_timetable_id(
-    db: Session, user_id: int | Column[Integer],
-    timetable_id: int | Column[Integer]
+        db: Session, user_id: int | Column[Integer],
+        timetable_id: int | Column[Integer]
 ) -> models.Application | None:
     return db.query(models.Application).filter(
         models.Application.id_user == user_id,
@@ -537,8 +498,8 @@ def update_timetable(db: Session, timetable_id: int | Column[Integer], timetable
             models.Timetable.course: timetable_data.course
         },
         synchronize_session=False
-        )
-    db.commit()  
+    )
+    db.commit()
 
 
 def delete_timetable(db: Session, timetable_id: int | Column[Integer]):
@@ -552,78 +513,24 @@ def get_task_by_subject(db: Session, id_timetable: int, subject: str):
     return result.scalars().all()
 
 
-def get_all_tasks_in_table(db: Session, id_timetable: int, user_id: int):
+def get_all_tasks_in_table(db: Session, id_timetable: int):
     result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    result = db.execute(select(models.TaskStatuses).where(models.TaskStatuses.id_user == user_id))
-    statuses = result.scalars().all()
-    tas = []
-    for task in tasks:
-        i = 0
-        for stat in statuses:
-            if stat.id_task == task.id:
-                i = 1
-                stats = [{
-                    "id": stat.id_task,
-                    "id_user": user_id,
-                    "status": stat.status
-                }]
-                break
-        if i == 1:
-            t = {
-                "id": task.id,
-                "timetable_id": id_timetable,
-                "description": task.description,
-                "deadline": task.deadline,
-                "subject": task.subject,
-                "statuses": stats
-            }
-            tas.append(t)
-            i = 0
-    return tas
+    return result.scalars().all()
 
 
 def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
     db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
     db.commit()
-    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == id_task).delete()
-    db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_task_from_user(db: Session, id_timetable: int, id_task: int, user_id: int):
-    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id).delete()
-    db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_ready_task_from_user(db: Session, id_timetable: int, user_id: int):
-    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    for task in tasks:
-        db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id)\
-            .filter(models.TaskStatuses.status == "Завершено").filter(models.TaskStatuses.id_task == task).delete()
-        db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_ready_task_from_timetable(db: Session, id_timetable: int):
-    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    for task in tasks:
-        db.query(models.TaskStatuses).filter(models.TaskStatuses.status == "Завершено")\
-            .filter(models.TaskStatuses.id_task == task).delete()
-        db.commit()
     return 'Task deleted successfully'
 
 
 def create_task_for_one_user(db: Session, user_id: int | Column[Integer], task: schemas.TaskBase):
     db_task = models.Task(
-        id_timetable = task.id_timetable,
-        description = task.description,
-        subject = task.subject,
-        deadline = task.deadline,
-        tag = schemas.TaskTags.one
+        id_timetable=task.id_timetable,
+        description=task.description,
+        subject=task.subject,
+        deadline=task.deadline,
+        tag=schemas.TaskTags.one
     )
     db.add(db_task)
     db.commit()
@@ -633,11 +540,11 @@ def create_task_for_one_user(db: Session, user_id: int | Column[Integer], task: 
 
 def create_task_for_all_users(db: Session, users_id: list[int] | list[Column[Integer]], task: schemas.TaskBase):
     db_task = models.Task(
-        id_timetable = task.id_timetable,
-        description = task.description,
-        subject = task.subject,
-        deadline = task.deadline,
-        tag = schemas.TaskTags.all
+        id_timetable=task.id_timetable,
+        description=task.description,
+        subject=task.subject,
+        deadline=task.deadline,
+        tag=schemas.TaskTags.all
     )
     db.add(db_task)
     db.commit()
@@ -648,21 +555,22 @@ def create_task_for_all_users(db: Session, users_id: list[int] | list[Column[Int
 
 def create_task_user_status(db: Session, task_id: int | Column[Integer], user_id: int | Column[Integer]):
     db_task_user_status = models.TaskStatuses(
-        id_task = task_id,
-        id_user = user_id,
-        status = schemas.TaskStatusesEnum.in_progress
+        id_task=task_id,
+        id_user=user_id,
+        status=schemas.TaskStatusesEnum.in_progress
     )
     db.add(db_task_user_status)
     db.commit()
 
 
 def update_task_user_status(
-    db: Session,
-    task_id: int | Column[Integer],
-    user_id: int | Column[Integer],
-    status: schemas.TaskStatusesEnum
+        db: Session,
+        task_id: int | Column[Integer],
+        user_id: int | Column[Integer],
+        status: schemas.TaskStatusesEnum
 ):
-    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == task_id, models.TaskStatuses.id_user == user_id,).update(
+    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == task_id,
+                                         models.TaskStatuses.id_user == user_id, ).update(
         {
             models.TaskStatuses.status: status
         },
@@ -672,11 +580,11 @@ def update_task_user_status(
 
 
 def update_task_info(
-    db: Session,
-    task_id: int | Column[Integer],
-    description: str | Column[String],
-    subject:  str | Column[String],
-    deadline:  datetime,
+        db: Session,
+        task_id: int | Column[Integer],
+        description: str | Column[String],
+        subject: str | Column[String],
+        deadline: datetime,
 ):
     db.query(models.Task).filter(models.Task.id == task_id).update(
         {
@@ -690,9 +598,9 @@ def update_task_info(
 
 
 def get_user_task_relation_by_task_id(
-    db: Session,
-    task_id: int | Column[Integer],
-    user_id : int | Column[Integer]
+        db: Session,
+        task_id: int | Column[Integer],
+        user_id: int | Column[Integer]
 ) -> models.TaskStatuses | None:
     return db.query(models.TaskStatuses).filter(
         models.TaskStatuses.id_task == task_id,
@@ -705,10 +613,10 @@ def get_task_by_id(db: Session, task_id: int | Column[Integer]) -> models.Task |
 
 
 def get_tasks_by_date(
-    db: Session,
-    timetable_id: int | Column[Integer], 
-    tasks_date: date,
-    user_id: int | Column[Integer]
+        db: Session,
+        timetable_id: int | Column[Integer],
+        tasks_date: date,
+        user_id: int | Column[Integer]
 ) -> list[models.Task] | None:
     return db.query(models.Task).join(
         models.TaskStatuses,

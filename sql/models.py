@@ -27,6 +27,15 @@ class User(Base):  # type: ignore
     timetables_info = relationship("Timetable", secondary="timetable_user", back_populates="users_info")
 
 
+class PassChangeRequest(Base):  # type: ignore
+    __tablename__ = "pass_change_request"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(150), nullable=False)
+    new_password = Column(String(150), nullable=False)
+    creation_date = Column(DateTime, default=datetime.utcnow())
+
+
 class Application(Base):  # type: ignore
     __tablename__ = "application"
 

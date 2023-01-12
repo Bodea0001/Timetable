@@ -7,7 +7,7 @@ from sql.crud import create_user, create_user_refresh_token, create_user_white_i
 from models import schemas
 from controllers.db import get_db
 from controllers.user import get_user
-from controllers.email import is_email_valid
+from controllers.mail import is_email_valid
 from controllers.token import create_access_token, create_refresh_token
 from controllers.password import get_password_hash
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS

@@ -296,6 +296,16 @@ class UserWhiteIP(BaseModel):
     white_ip: str
 
 
+class PassChangeRequestBase(BaseModel):
+    id: int
+    email: EmailStr
+
+
+class PassChangeRequest(PassChangeRequestBase):
+    new_password: str
+    creation_date: datetime
+
+
 class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
     def __init__(
         self,
@@ -336,3 +346,13 @@ class TimetableRequestForm:
         self.specialization_code = specialization_code
         self.education_level = education_level
         self.course = course
+
+    
+class ChangePasswordForm:
+    def __init__(
+        self,
+        email: EmailStr = Form(),
+        new_password: str = Form(),
+    ):
+        self.email = email
+        self.new_password = new_password

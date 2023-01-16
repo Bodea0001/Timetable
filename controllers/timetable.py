@@ -148,7 +148,7 @@ def validate_timetable(
     )
 
 
-def get_valid_timetable_lite(db: Session, db_timetable: models.Timetable) -> schemas.TimetableOut:
+def get_valid_timetable_lite(db: Session, db_timetable: models.Timetable) -> schemas.TimetableOutLite:
     university = get_university_by_id(db, db_timetable.id_university)  # type: ignore
     if not university:
         raise HTTPException(
@@ -170,8 +170,8 @@ def validate_timetable_lite(
     db_timetable: models.Timetable,
     university: models.University,
     specialization: models.Specialization,
-    ) -> schemas.TimetableOut:
-    return schemas.TimetableOut(
+    ) -> schemas.TimetableOutLite:
+    return schemas.TimetableOutLite(
         id=db_timetable.id, # type: ignore
         name=db_timetable.name, # type: ignore
         university=university.name, #type: ignore

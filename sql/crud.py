@@ -103,79 +103,6 @@ def delete_password_change_request(db: Session, id: int | Column[Integer]):
     db.query(models.PassChangeRequest).filter(models.PassChangeRequest.id == id).delete()
 
 
-def get_tasks_by_user_id(db: Session, user_id: int):
-    result = db.execute(select(models.TimetableUser).where(models.TimetableUser.id_user == user_id))
-    tasks = []
-    for res in result:
-        tasks.append(get_all_tasks_in_table(db, res.TimetableUser.id_timetable, user_id))
-    return tasks
-
-
-def get_task_id(subject: str, description: str, id_timetable: int, db: Session):
-    result = db.execute(select(models.Task).where(models.Task.subject == subject). where(models.Task.id_timetable
-                                                                                         == id_timetable).
-                        where(models.Task.description == description))
-    res = result.scalars().all()
-    return res[0].id
-
-
-def create_task_for_all(db: Session, task: schemas.TaskBase):
-    db_task = models.Task(
-        id_timetable=task.id_timetable,
-        description=task.description,
-        deadline=task.deadline,
-        subject=task.subject
-    )
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    task_id = get_task_id(task.subject, task.description, task.id_timetable, db)
-    add_user_statuses(db, task_id, task.id_timetable)
-    return db_task
-
-
-def get_users_id_in_timetable(db: Session, timetable_id: int):
-    result = db.execute(select(models.TimetableUser.id_user).where(models.TimetableUser.id_timetable == timetable_id))
-    return result
-
-
-def add_user_statuses(db: Session, task_id: int, timetable_id: int):
-    res = get_users_id_in_timetable(db, timetable_id)
-    users = res.scalars().all()
-    for user in users:
-        db_statuses = models.TaskStatuses(
-            id_task=task_id,
-            id_user=user,
-            status="В процессе"
-        )
-        db.add(db_statuses)
-        db.commit()
-        db.refresh(db_statuses)
-    return 1
-
-
-def create_task(db: Session, task: schemas.TaskBase, user_id: int):
-    db_task = models.Task(
-        id_timetable=task.id_timetable,
-        description=task.description,
-        deadline=task.deadline,
-        subject=task.subject
-    )
-    db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
-    id_task = get_task_id(task.subject, task.description, task.id_timetable, db)
-    db_statuses = models.TaskStatuses(
-        id_task=id_task,
-        id_user=user_id,
-        status=schemas.TaskStatusesEnum.in_progress
-    )
-    db.add(db_statuses)
-    db.commit()
-    db.refresh(db_statuses)
-    return db_task
-
-
 def get_timetables(
     db: Session,
     timetable_name: str | Column[String],
@@ -575,77 +502,6 @@ def delete_timetable(db: Session, timetable_id: int | Column[Integer]):
     db.commit()
 
 
-def get_task_by_subject(db: Session, id_timetable: int, subject: str):
-    result = db.execute(select(models.Task).where(models.Task.subject == subject).where(models.Task.id_timetable ==
-                                                                                        id_timetable))
-    return result.scalars().all()
-
-
-def get_all_tasks_in_table(db: Session, id_timetable: int, user_id: int):
-    result = db.execute(select(models.Task).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    result = db.execute(select(models.TaskStatuses).where(models.TaskStatuses.id_user == user_id))
-    statuses = result.scalars().all()
-    tas = []
-    for task in tasks:
-        i = 0
-        for stat in statuses:
-            if stat.id_task == task.id:
-                i = 1
-                stats = [{
-                    "id": stat.id_task,
-                    "id_user": user_id,
-                    "status": stat.status
-                }]
-                break
-        if i == 1:
-            t = {
-                "id": task.id,
-                "timetable_id": id_timetable,
-                "description": task.description,
-                "deadline": task.deadline,
-                "subject": task.subject,
-                "statuses": stats  # type: ignore
-            }
-            tas.append(t)
-            i = 0
-    return tas
-
-
-def delete_task_from_table(db: Session, id_timetable: int, id_task: int):
-    db.query(models.Task).filter(models.Task.id == id_task).filter(models.Task.id_timetable == id_timetable).delete()
-    db.commit()
-    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_task == id_task).delete()
-    db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_task_from_user(db: Session, id_timetable: int, id_task: int, user_id: int):
-    db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id).delete()
-    db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_ready_task_from_user(db: Session, id_timetable: int, user_id: int):
-    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    for task in tasks:
-        db.query(models.TaskStatuses).filter(models.TaskStatuses.id_user == user_id)\
-            .filter(models.TaskStatuses.status == "Завершено").filter(models.TaskStatuses.id_task == task).delete()
-        db.commit()
-    return 'Task deleted successfully'
-
-
-def delete_ready_task_from_timetable(db: Session, id_timetable: int):
-    result = db.execute(select(models.Task.id).where(models.Task.id_timetable == id_timetable))
-    tasks = result.scalars().all()
-    for task in tasks:
-        db.query(models.TaskStatuses).filter(models.TaskStatuses.status == "Завершено")\
-            .filter(models.TaskStatuses.id_task == task).delete()
-        db.commit()
-    return 'Task deleted successfully'
-
-
 def create_task_for_one_user(db: Session, user_id: int | Column[Integer], task: schemas.TaskBase):
     db_task = models.Task(
         id_timetable = task.id_timetable,
@@ -683,6 +539,17 @@ def create_task_user_status(db: Session, task_id: int | Column[Integer], user_id
     )
     db.add(db_task_user_status)
     db.commit()
+
+
+def create_tasks_user_relation_in_timetable(db: Session, timetable_id: int | Column[Integer], user_id: int | Column[Integer]):
+    tasks_id_with_tag_all_in_timetable = db.query(models.Task.id).filter(
+        models.Task.id_timetable == timetable_id,
+        models.Task.tag == schemas.TaskTags.all
+    ).all()
+    sorted_tasks_id = [task[0] for task in tasks_id_with_tag_all_in_timetable]
+    if sorted_tasks_id:
+        for task_id in sorted_tasks_id:
+            create_task_user_status(db, task_id, user_id)
 
 
 def update_task_user_status(
@@ -733,6 +600,24 @@ def get_task_by_id(db: Session, task_id: int | Column[Integer]) -> models.Task |
     return db.query(models.Task).filter(models.Task.id == task_id).first()
 
 
+def get_complited_task_ids_by_user_id_timetable_id(
+    db: Session,
+    user_id: int | Column[Integer],
+    timetable_id: int | Column[Integer]
+) -> list[int] | None:
+    user_tasks = db.query(models.TaskStatuses.id_task).filter(
+        models.TaskStatuses.id_user == user_id,
+        models.TaskStatuses.status == schemas.TaskStatusesEnum.complited
+    ).all()
+    user_tasks = [task[0] for task in user_tasks]
+    user_timetable_tasks = db.query(models.Task.id).filter(
+        models.Task.tag == schemas.TaskTags.one,
+        models.Task.id_timetable == timetable_id,
+        models.Task.id.in_(user_tasks)
+    ).all()
+    return [task[0] for task in user_timetable_tasks]
+
+
 def get_tasks_by_date(
     db: Session,
     timetable_id: int | Column[Integer], 
@@ -746,3 +631,13 @@ def get_tasks_by_date(
         models.Task.id_timetable == timetable_id,
         cast(models.Task.deadline, Date) == tasks_date,
     ).all()
+
+
+def delete_task_by_id(db: Session, task_id: int | Column[Integer]):
+    db.query(models.Task).filter(models.Task.id == task_id).delete()
+    db.commit()
+
+
+def delete_tasks_by_list_with_id(db: Session, task_ids: list[int]):
+    db.query(models.Task).filter(models.Task.id.in_(task_ids)).delete()
+    db.commit()

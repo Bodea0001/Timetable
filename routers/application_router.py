@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from models import schemas
 from controllers.db import get_db
-from controllers.user import get_current_user, validate_application
+from controllers.user import get_current_user, validate_application, validate_application_for_user
 from controllers.timetable import check_user_limit_timetables
 from sql import models
 from sql.crud import (
@@ -17,7 +17,8 @@ from sql.crud import (
     get_applications_by_timetable_id,
     get_application_by_user_id_and_timetable_id,
     create_application,
-    delete_application
+    delete_application,
+    create_tasks_user_relation_in_timetable
 )
 
 
@@ -80,8 +81,8 @@ async def delete_user_application(
 
 
 @router.get("/get_all_submitted", summary="Get all user's submitted applications")
-async def get_all_submitted_applications(user: models.User = Depends(get_current_user)):
-    return {"applications": [validate_application(application) for application in user.applications]}  # type: ignore
+async def get_all_submitted_applications(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    return {"applications": [validate_application_for_user(db, user.id, application) for application in user.applications]}  # type: ignore
 
 
 @router.get("/get_all_for_consideration", summary="Get all user's applications for consideration")
@@ -95,10 +96,9 @@ async def get_all_applications_for_consideration(user: models.User = Depends(get
 
     applications = []
     for timetable_id in timetables_id:
-        if timetables_id:
-            applications.extend(get_applications_by_timetable_id(db, timetable_id))
+        applications.extend(get_applications_by_timetable_id(db, timetable_id))
 
-    return {"applications": applications}
+    return {"applications": [validate_application(db, application) for application in applications]}  # type: ignore
 
 
 @router.post("/accept", summary="Add timetable to user")
@@ -145,6 +145,7 @@ async def accept_application(
         )    
 
     create_timetable_user_relation(db, application.id_user, application.id_timetable)  # type: ignore
+    create_tasks_user_relation_in_timetable(db, application.id_timetable, application.id_user)  # type: ignore
 
 
 @router.delete("/reject", summary="Reject an application")

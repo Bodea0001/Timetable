@@ -242,6 +242,14 @@ class ApplicationOut(ApplicationBase):
     user_first_name: str
     user_last_name: str
 
+class ApplicationOutForUser(ApplicationBase):
+    timetable_name: str
+    timetable_university: str
+    timetable_specialization_name: str
+    timetable_specialization_code: str
+    timetable_education_level: Education_level
+    timetable_course: int
+
 
 class UserUpdate(BaseModel):
     first_name: str
@@ -267,7 +275,7 @@ class UserOutLite(UserBase):
 class UserOut(UserBase):
     id: int
     tg_username: str | None
-    applications: list[ApplicationOut]
+    applications: list[ApplicationOutForUser]
     timetables_info: list[TimetableOut]
 
 

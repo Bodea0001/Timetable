@@ -1,34 +1,28 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+from datetime import date
 
 from sql import models
 from sql.crud import (
     get_task_by_id,
     update_task_info,
     get_tasks_by_date,
+    delete_task_by_id,
     get_timetable_users_id,
     update_task_user_status,
     create_task_for_one_user,
     get_timetable_user_status,
     create_task_for_all_users,
+    delete_tasks_by_list_with_id,
     get_user_task_relation_by_task_id,
+    get_complited_task_ids_by_user_id_timetable_id,
 )
 from models import schemas
 from controllers.user import get_current_user
 from controllers.db import get_db
 from controllers.task_controller import (
-    addTask,
-    addTaskForAll,
-    getTaskBySubject,
-    getAllTaskInTable,
-    get_task_by_userid,
-    deleteTaskFromUser,
-    deleteTaskFromTable, 
     validate_task_for_user,
     validate_task_for_elder,
-    deleteReadyTaskFromUser,
-    deleteReadyTaskFromTimeTable
 )
 from controllers.timetable import check_timetable
 
@@ -37,68 +31,6 @@ router = APIRouter(
     tags=["task"]
 )
 
-
-# Add new task for one user
-@router.post("/user", status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
-async def create_task(
-    task: schemas.TaskBase,
-    db: Session = Depends(get_db),
-    user: schemas.User = Depends(get_current_user)
-):
-    return addTask(task, db, user.id)
-
-
-# Add new task for all users in timetable
-@router.post("/all", status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
-async def create_task_for_all_(task: schemas.TaskBase, db: Session = Depends(get_db)):
-    return addTaskForAll(task, db)
-
-
-# Get tasks by subject in timetable
-@router.get('/task/subject', tags=['task'], status_code=status.HTTP_200_OK,
-            dependencies=[Depends(get_current_user)])
-async def get_task_by_subject(subject: str, id_timetable: int, db: Session = Depends(get_db)):
-    return getTaskBySubject(subject, id_timetable, db)
-
-
-@router.get('/user_id', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def get_task_by_user_id(db: Session = Depends(get_db), user: schemas.User = Depends(get_current_user)):
-    return get_task_by_userid(db, user.id)
-
-
-# Get all users tasks in timetable
-@router.get('/', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def get_task(id_timetable: int, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    return getAllTaskInTable(id_timetable, db, user.id)  # type: ignore
-
-
-# Delete task from all users in timetable
-@router.delete('/', status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def delete_task1(id_timetable: int, id_task: int, db: Session = Depends(get_db)):
-    return deleteTaskFromTable(id_timetable, id_task, db)
-
-
-# Delete task from user in timetable
-@router.delete('/task/single', tags=['task'], status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
-async def delete_task2(id_timetable: int, id_task: int, db: Session = Depends(get_db),
-                      user: schemas.User = Depends(get_current_user)):
-    return deleteTaskFromUser(id_timetable, id_task, db, user.id)
-
-
-# Delete ready task from user in timetable
-@router.delete('/task/ready/single', tags=['task'], status_code=status.HTTP_200_OK,
-               dependencies=[Depends(get_current_user)])
-async def delete_task3(id_timetable: int, db: Session = Depends(get_db),
-                      user: schemas.User = Depends(get_current_user)):
-    return deleteReadyTaskFromUser(id_timetable, db, user.id)
-
-
-# Delete ready task from all users in timetable
-@router.delete('/task/ready/all', tags=['task'], status_code=status.HTTP_200_OK,
-               dependencies=[Depends(get_current_user)])
-async def delete_task(id_timetable: int, db: Session = Depends(get_db)):
-    return deleteReadyTaskFromTimeTable(id_timetable, db)
-# ---------------------------------------------
 
 @router.post(
     path="/create_for_user",
@@ -183,7 +115,7 @@ async def get_user_tasks_in_timetable(
     timetable = check_timetable(user, timetable_id)
 
     timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if (timetable_user_status != schemas.TimetableUserStatuses.elder):
+    if timetable_user_status != schemas.TimetableUserStatuses.elder:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"The current user doesn't have access rights to get all tasks in this timetable"
@@ -296,10 +228,53 @@ async def update_task_information(
         check_timetable(user, task.id_timetable)  # type: ignore
 
         timetable_user_status = get_timetable_user_status(db, user.id, task.id_timetable)  # type: ignore
-        if (timetable_user_status != schemas.TimetableUserStatuses.elder):
+        if timetable_user_status != schemas.TimetableUserStatuses.elder:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"The current user doesn't have access rights to update this task"
             )
     
     update_task_info(db, task_data.id, task_data.description, task_data.subject, task_data.deadline)
+
+
+@router.delete("/delete", summary="Delete the task in the timetable")
+async def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    task = get_task_by_id(db, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Unknown task"
+        )
+    
+    check_timetable(user, task.id_timetable)  # type: ignore
+
+    timetable_user_status = get_timetable_user_status(db, user.id, task.id_timetable)  # type: ignore
+    user_task_relation = get_user_task_relation_by_task_id(db, task_id, user.id)
+    if task.tag == schemas.TaskTags.one and not user_task_relation or timetable_user_status != schemas.TimetableUserStatuses.elder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"The current user doesn't have access rights to delete this task in the timetable"
+        )
+
+    delete_task_by_id(db, task_id)
+
+
+@router.delete("/delete/complited", summary="Delete complited tasks in the timetable")
+async def delete_expired_user_tasks(
+    timetable_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    check_timetable(user, timetable_id)  # type: ignore
+
+    user_timetable_task_ids = get_complited_task_ids_by_user_id_timetable_id(db, user.id, timetable_id)
+    if not user_timetable_task_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The user has no complited tasks"
+        )
+    delete_tasks_by_list_with_id(db, user_timetable_task_ids)

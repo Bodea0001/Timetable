@@ -9,7 +9,8 @@ from sql.crud import (
     get_specialization_by_code,
     get_timetable_by_name_and_user_id, 
     get_university_by_id, 
-    get_specialization_by_id
+    get_specialization_by_id,
+    get_timetable_user_status
     )
 from models import schemas
 from controllers.week import validate_upper_week_items, validate_lower_week_items
@@ -120,14 +121,18 @@ def get_valid_timetable(db: Session, db_timetable: models.Timetable, user_id: in
             detail="The specialization was not found, change the specialization from the timetable"
         )
 
-    return validate_timetable(db_timetable, university, specialization, user_id)
+    user_status = get_timetable_user_status(db, user_id, db_timetable.id)
+    if not user_status:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return validate_timetable(db_timetable, university, specialization, user_id, user_status)
   
 
 def validate_timetable(
     db_timetable: models.Timetable,
     university: models.University,
     specialization: models.Specialization,
-    user_id: int | Column[Integer]
+    user_id: int | Column[Integer],
+    status: schemas.TimetableUserStatuses
     ) -> schemas.TimetableOut:
     valid_upper_week_items = validate_upper_week_items(db_timetable.upper_week_items)  # type: ignore
     valid_lower_week_items = validate_lower_week_items(db_timetable.lower_week_items)  # type: ignore
@@ -141,6 +146,7 @@ def validate_timetable(
         specialization_code=specialization.code, #type: ignore
         education_level=specialization.education_level, # type: ignore
         course=db_timetable.course, # type: ignore
+        user_status=status,
         creation_date=db_timetable.creation_date,  # type: ignore
         upper_week_items=valid_upper_week_items,
         lower_week_items=valid_lower_week_items,

@@ -193,8 +193,14 @@ class TimetableOutLite(TimetableBase):
     creation_date: datetime
 
 
+class TimetableUserStatuses(str, Enum):
+    elder = "староста"
+    user = "пользователь"   
+
+
 class TimetableOut(TimetableOutLite):
     id: int
+    user_status: TimetableUserStatuses
     
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
@@ -210,11 +216,6 @@ class Timetable(TimetableBase):
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
     tasks: list[Task]
-
-
-class TimetableUserStatuses(str, Enum):
-    elder = "староста"
-    user = "пользователь"   
 
 
 class TimetableUserCreate(BaseModel):

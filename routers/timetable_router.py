@@ -83,7 +83,7 @@ async def create_new_timetable(
     )
     create_timetable_user(db, timetable_user_relation)
 
-    return validate_timetable(db_timetable, university, specialization, user.id)
+    return validate_timetable(db_timetable, university, specialization, user.id, timetable_user_relation.status)
 
 
 @router.get(

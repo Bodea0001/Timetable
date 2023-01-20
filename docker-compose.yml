@@ -1,0 +1,40 @@
+services:
+
+  db:
+    container_name: postgresql_db
+    image: postgres:14.6
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - pgdbdata:/var/lib/postgresql/data/
+
+  app:
+    container_name: app
+    build: .
+    command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - .:/app
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    restart: always
+    environment:
+      - DATABASE=${DATABASE} # "postgresql"
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME} # "timetable"
+      - DB_HOST=${DB_HOST} # "db"
+      - DB_URL=${DB_URL} # DB_URL=$DATABASE+psycopg2://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME
+      - EMAIL=${EMAIL} # *@mail.ru
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - PASSWORD_SALT=${PASSWORD_SALT} # openssl rand -hex 32
+      - SECRET_KEY=${SECRET_KEY} # openssl rand -hex 32
+
+volumes:
+  pgdbdata: null

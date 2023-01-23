@@ -25,7 +25,7 @@ async def read_user(db: Session = Depends(get_db), user: models.User = Depends(g
 @router.patch(
     path="/update",
     response_model=schemas.UserOut,
-    summary="Update first_name, last_name, tg_username",
+    summary="Update first_name, last_name",
 )
 async def update_user_information(
     first_name: str,

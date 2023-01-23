@@ -1,5 +1,5 @@
 import sys
-from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, Time, ForeignKey, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -19,7 +19,7 @@ class User(Base):  # type: ignore
     first_name = Column(String(150), nullable=False)
     last_name = Column(String(150), nullable=False)
     registry_date = Column(DateTime, default=datetime.utcnow())
-    tg_username = Column(String)
+    tg_user_id = Column(BigInteger)
 
     applications = relationship("Application")
     refresh_tokens = relationship("UserRefreshToken")

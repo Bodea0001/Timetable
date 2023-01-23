@@ -51,7 +51,7 @@ def get_valid_user(db: Session, user: models.User) -> schemas.UserOut:
         email=user.email, # type: ignore 
         first_name=user.first_name, # type: ignore
         last_name=user.last_name, # type: ignore
-        tg_username=user.tg_username,  # type: ignore
+        tg_user_id=user.tg_user_id,  # type: ignore
         applications=applications,  # type: ignore
         timetables_info=timetables  # type: ignore
     )

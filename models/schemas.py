@@ -268,14 +268,14 @@ class UserBase(BaseModel):
 
 class UserOutLite(UserBase):
     id: int
-    tg_username: str | None
+    tg_user_id: int | None = None
     applications: list[ApplicationBase]
     timetables_info: list[TimetableOutLite]
 
 
 class UserOut(UserBase):
     id: int
-    tg_username: str | None
+    tg_user_id: int | None = None
     applications: list[ApplicationOutForUser]
     timetables_info: list[TimetableOut]
 
@@ -287,7 +287,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
     registry_date: datetime
-    tg_username: str | None = None
+    tg_user_id: int | None = None
     applications: list[ApplicationBase]
     refresh_tokens: list[str]
     white_list_ip: list[str]

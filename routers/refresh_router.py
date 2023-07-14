@@ -1,7 +1,7 @@
 from datetime import timedelta
 from fastapi import APIRouter, HTTPException, status, Depends, Request
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from sql import models
 from sql.crud import (
@@ -50,10 +50,20 @@ async def refresh_tokens(
     token_data = {"sub": user.email}
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_time = datetime.utcnow() + access_token_expires
+    access_token_time_stamp = datetime.timestamp(access_token_time)
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
 
     refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token_time = datetime.utcnow() + refresh_token_expires
+    refresh_token_time_stamp = datetime.timestamp(refresh_token_time)
     refresh_token = create_refresh_token(token_data, expires_delta=refresh_token_expires)
     create_user_refresh_token(db, user.id, refresh_token)
     
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "access_token_expires": access_token_time_stamp,
+        "refresh_token": refresh_token, 
+        "refresh_token_expires": refresh_token_time_stamp,
+        "token_type": "bearer"
+    }

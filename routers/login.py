@@ -1,12 +1,12 @@
-from datetime import timedelta
-from fastapi import APIRouter, HTTPException, status, Depends, Request
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import timedelta, datetime
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 
 from models.schemas import Token
+from controllers.db import get_db
 from controllers.user import authenticate_user
 from controllers.token import create_access_token, create_refresh_token
-from controllers.db import get_db
 from sql.crud import create_user_refresh_token, create_user_white_ip, delete_all_user_refresh_token
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 
@@ -35,15 +35,25 @@ async def login_for_access_token(
     token_data = {"sub": user.email}
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_time = datetime.utcnow() + access_token_expires
+    access_token_time_stamp = datetime.timestamp(access_token_time)
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
 
     refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token_time = datetime.utcnow() + refresh_token_expires
+    refresh_token_time_stamp = datetime.timestamp(refresh_token_time)
     refresh_token = create_refresh_token(token_data, expires_delta=refresh_token_expires)
     create_user_refresh_token(db, user.id, refresh_token)
-
+    
     white_ip = request.client.host  # type: ignore
     user_white_list_ip = [value.white_ip for value in user.white_list_ip]  # type: ignore
     if white_ip not in user_white_list_ip:
         create_user_white_ip(db, user.id, white_ip)
     
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "access_token_expires": access_token_time_stamp,
+        "refresh_token": refresh_token, 
+        "refresh_token_expires": refresh_token_time_stamp,
+        "token_type": "bearer"
+    }

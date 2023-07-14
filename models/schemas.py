@@ -5,11 +5,17 @@ from datetime import datetime, time
 from enum import Enum
 
 
-class Token(BaseModel):
+class AccessToken(BaseModel):
     access_token: str
     access_token_expires: int
+
+
+class RefreshToken(BaseModel):
     refresh_token: str
     refresh_token_expires: int
+
+
+class Token(AccessToken, RefreshToken):
     token_type: str
 
 

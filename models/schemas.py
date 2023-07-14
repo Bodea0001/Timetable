@@ -7,7 +7,9 @@ from enum import Enum
 
 class Token(BaseModel):
     access_token: str
+    access_token_expires: int
     refresh_token: str
+    refresh_token_expires: int
     token_type: str
 
 

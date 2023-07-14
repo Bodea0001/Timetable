@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 
@@ -15,7 +15,10 @@ from config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
 router = APIRouter()
 
 
-@router.post("/register", response_model=schemas.Token, tags=["auth"], status_code=status.HTTP_201_CREATED)
+@router.post(
+    path="/register",
+    response_model=schemas.Token,
+    tags=["auth"], status_code=status.HTTP_201_CREATED)
 async def process_register(
     request: Request,
     form_data: schemas.OAuth2PasswordRequestFormUpdate = Depends(),
@@ -46,13 +49,23 @@ async def process_register(
     token_data = {"sub": db_user.email}
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_time = datetime.utcnow() + access_token_expires
+    access_token_time_stamp = datetime.timestamp(access_token_time)
     access_token = create_access_token(token_data, expires_delta=access_token_expires)
 
     refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    refresh_token_time = datetime.utcnow() + refresh_token_expires
+    refresh_token_time_stamp = datetime.timestamp(refresh_token_time)
     refresh_token = create_refresh_token(token_data, expires_delta=refresh_token_expires)
     create_user_refresh_token(db, db_user.id, refresh_token)
 
     white_ip = request.client.host  # type: ignore
     create_user_white_ip(db, db_user.id, white_ip)
     
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "access_token_expires": access_token_time_stamp,
+        "refresh_token": refresh_token, 
+        "refresh_token_expires": refresh_token_time_stamp,
+        "token_type": "bearer"
+        }

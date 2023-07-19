@@ -96,7 +96,7 @@ class TaskStatuses(Base):  # type: ignore
 
     id = Column(Integer, primary_key=True, index=True)
     id_task = Column(ForeignKey("task.id", ondelete="CASCADE"))
-    id_user = Column(ForeignKey("user.id"))
+    id_user = Column(ForeignKey("user.id", ondelete="CASCADE"))
     status = Column(String, nullable=False)
 
 

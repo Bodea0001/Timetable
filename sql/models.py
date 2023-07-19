@@ -40,7 +40,7 @@ class Application(Base):  # type: ignore
     __tablename__ = "application"
 
     id = Column(Integer, primary_key=True, index=True)
-    id_user = Column(ForeignKey("user.id"), nullable=False)
+    id_user = Column(ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"), nullable=False)
     creation_date = Column(DateTime, default=datetime.utcnow())
 

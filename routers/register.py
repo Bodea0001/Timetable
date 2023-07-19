@@ -1,71 +1,42 @@
-from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, status, HTTPException, Request
 
-from sql import models
-from sql.crud import create_user, create_user_refresh_token, create_user_white_ip
-from models import schemas
+from crud.ip import create_user_white_ip
+from crud.user import exists_user_with_email
+from crud.token import create_user_refresh_token
 from controllers.db import get_db
-from controllers.user import get_user
-from controllers.mail import is_email_valid
-from controllers.token import create_access_token, create_refresh_token
-from controllers.password import get_password_hash
-from config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+from controllers.user import create_user
+from controllers.token import create_access_and_refresh_tokens
+from models.schemas import Token, OAuth2PasswordRequestFormUpdate
+
 
 router = APIRouter()
 
 
 @router.post(
-    path="/register",
-    response_model=schemas.Token,
-    tags=["auth"], status_code=status.HTTP_201_CREATED)
+    path="/signup",
+    response_model=Token,
+    tags=["auth"],
+    status_code=status.HTTP_201_CREATED
+)
 async def process_register(
     request: Request,
-    form_data: schemas.OAuth2PasswordRequestFormUpdate = Depends(),
+    form_data: OAuth2PasswordRequestFormUpdate = Depends(),
     db: Session = Depends(get_db)
-    ):
-    email = form_data.username
-    if not is_email_valid(email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid username",
-        )
-    user = get_user(db, form_data.username)
-    if user:
+):
+    if exists_user_with_email(db, form_data.username):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="An account with this email already exists!"
-        )
+            detail="An account with this email already exists!")
     
-    form_data.password = get_password_hash(form_data.password)
-    user = models.User(
-        email=form_data.username,
-        password=form_data.password,
-        first_name=form_data.first_name.capitalize(),
-        last_name=form_data.last_name.capitalize(),
-    )
-    db_user = create_user(db, user)
+    user = create_user(db, form_data)
 
-    token_data = {"sub": db_user.email}
+    token_data = {"sub": user.email}
+    tokens = create_access_and_refresh_tokens(token_data)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token_time = datetime.utcnow() + access_token_expires
-    access_token_time_stamp = datetime.timestamp(access_token_time)
-    access_token = create_access_token(token_data, expires_delta=access_token_expires)
-
-    refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    refresh_token_time = datetime.utcnow() + refresh_token_expires
-    refresh_token_time_stamp = datetime.timestamp(refresh_token_time)
-    refresh_token = create_refresh_token(token_data, expires_delta=refresh_token_expires)
-    create_user_refresh_token(db, db_user.id, refresh_token)
+    create_user_refresh_token(db, user.id, tokens.refresh_token)
 
     white_ip = request.client.host  # type: ignore
-    create_user_white_ip(db, db_user.id, white_ip)
+    create_user_white_ip(db, user.id, white_ip)
     
-    return {
-        "access_token": access_token, 
-        "access_token_expires": access_token_time_stamp,
-        "refresh_token": refresh_token, 
-        "refresh_token_expires": refresh_token_time_stamp,
-        "token_type": "bearer"
-        }
+    return tokens

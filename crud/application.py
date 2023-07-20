@@ -40,12 +40,12 @@ def get_applications_by_timetable_id(
 def exists_application_with_user_id_and_timetable_id(
     db: Session, user_id: int | Column[Integer],
     timetable_id: int | Column[Integer]
-) -> models.Application | None:
+) -> bool:
     """Проверяет, подавал ли данный пользователь заявку на 
     добавление к данному расписанию"""
     return db.query(exists().where(and_(
         models.Application.id_user == user_id,
-        models.Application.id_timetable == timetable_id))).first()
+        models.Application.id_timetable == timetable_id))).scalar()
 
 
 def delete_application(db: Session, application_id: int | Column[Integer]):

@@ -18,6 +18,17 @@ def create_application(
     db.commit()
 
 
+def have_user_application(
+    db: Session,
+    user_id: int | Column[Integer],
+    application_id: int | Column[Integer]
+) -> bool:
+    """Проверяет, подавал ли пользователь данную заявку"""
+    return db.query(exists().where(and_(
+        models.Application.id == application_id,
+        models.Application.id_user == user_id))).scalar()
+
+
 def get_application_by_id(
     db: Session, 
     application_id: int | Column[Integer]

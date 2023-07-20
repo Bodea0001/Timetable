@@ -1,8 +1,13 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, exists
 from sqlalchemy.orm import Session
 
 from sql import models
 from models import schemas
+
+
+def exists_timetable(db: Session, timetable_id: int | Column[Integer]) -> bool:
+    """Проверяет, есть ли расписание с данным ID"""
+    return db.query(exists().where(models.Timetable.id == timetable_id)).scalar()
 
 
 def get_timetables(

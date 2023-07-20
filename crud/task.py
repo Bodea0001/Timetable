@@ -100,11 +100,11 @@ def exists_user_task_relation(
     db: Session,
     task_id: int | Column[Integer],
     user_id : int | Column[Integer]
-) -> models.TaskStatuses | None:
+) -> bool:
     """Проверяет, есть ли у данного пользователя данная задача"""
     return db.query(exists().where(and_(
         models.TaskStatuses.id_task == task_id,
-        models.TaskStatuses.id_user == user_id))).first()
+        models.TaskStatuses.id_user == user_id))).scalar()
 
 
 def get_task_by_id(db: Session,

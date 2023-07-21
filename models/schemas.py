@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
 from fastapi import Form
+from pydantic import BaseModel, EmailStr
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime, time
 from enum import Enum
@@ -327,7 +327,7 @@ class OAuth2PasswordRequestFormUpdate(OAuth2PasswordRequestForm):
     def __init__(
         self,
         grant_type: str = Form(default=None, regex="password"),
-        username: str = Form(),
+        username: EmailStr = Form(),
         password: str = Form(),
         scope: str = Form(default=""),
         client_id: str | None = Form(default=None),

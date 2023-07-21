@@ -1,178 +1,152 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from sql import models
 from models import schemas
 from controllers.db import get_db
-from controllers.user import get_current_user, validate_application, validate_application_for_user
-from controllers.timetable import check_user_limit_timetables
-from sql import models
-from sql.crud import (
-    get_timetable_by_id,
-    get_timetable_user_status,
-    get_timetable_users_relation_by_user_id,
-    get_timetable_user_relation_by_user_id_and_timetable_id,
-    get_timetables_id_where_user_is_elder,
-    create_timetable_user_relation,
-    get_application_by_id,
-    get_applications_by_timetable_id,
-    get_application_by_user_id_and_timetable_id,
+from controllers.user import get_current_user
+from controllers.application import accept_application
+from controllers.timetable import is_possible_to_add_new_timetable
+from crud.timetable_user import (
+    exists_timetable_user_relation,
+    have_user_enough_rights_in_timetable
+)
+from crud.timetable import exists_timetable
+from crud.application import (
     create_application,
     delete_application,
-    create_tasks_user_relation_in_timetable
+    have_user_application,
+    get_application_by_id,
+    exists_application_with_user_id_and_timetable_id
+)
+from message import (
+    TIMETABLE_NOT_FOUND, 
+    APPLICATION_NOT_FOUND,
+    DUPLICATE_APPLICATION,
+    APPLICATION_HAS_BEEN_CREATED,
+    APPLICATION_HAS_BEEN_DELETED,
+    APPLICATION_HAS_BEEN_ACCEPTED,
+    APPLICATION_HAS_BEEN_REJECTED,
+    APPLICATION_TO_USER_TIMETABLE,
+    USER_DOESNT_HAVE_ENOUGH_RIGHTS,
+    TIMETABLE_LIMIT_HAS_BEEN_REACHED,
 )
 
 
-router = APIRouter(
-    prefix="/application",
-    tags=["application"]
-)
+router = APIRouter(tags=["application"])
 
 
 @router.post(
-    path="/submit",
-    summary="Submit an application",
-    description="Submit an application to be added to the timetable",
-)
+    path="/timetable/{timetable_id}/submit",
+    summary="Подать заявку на добавление к расписанию",
+    status_code=status.HTTP_201_CREATED,
+    response_description=APPLICATION_HAS_BEEN_CREATED)
 async def submit_application(
-    timetable_id: int,
-    user: models.User = Depends(get_current_user),
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
 ):
-    check_user_limit_timetables(user.timetables_info)  # type: ignore
-
-    timetable = get_timetable_by_id(db, timetable_id)
-    if not timetable:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknown timetable"
-        )
-
-    user_timetables_id = [timetable.id for timetable in user.timetables_info]  # type: ignore
-    if timetable_id in user_timetables_id:
+    if not is_possible_to_add_new_timetable(db, user.id):
         raise HTTPException(
             status_code = status.HTTP_403_FORBIDDEN,
-            detail="The user already has this timetable"
-        )
+            detail = TIMETABLE_LIMIT_HAS_BEEN_REACHED)
 
-    application = get_application_by_user_id_and_timetable_id(db, user.id, timetable_id)
-    if application:
+    if not exists_timetable(db, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user has already submitted an application to this timetable"
-        )
+            status_code = status.HTTP_404_NOT_FOUND,
+            detail = TIMETABLE_NOT_FOUND)
+
+    if exists_timetable_user_relation(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = APPLICATION_TO_USER_TIMETABLE)
+
+    if exists_application_with_user_id_and_timetable_id(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = DUPLICATE_APPLICATION)
 
     create_application(db, user.id, timetable_id)
 
 
-@router.delete("/delete", summary="Delete an application")
+@router.delete(
+    path="/application/{application_id}/delete",
+    summary="Удаляет заявку пользователя",
+    status_code=status.HTTP_200_OK,
+    response_description=APPLICATION_HAS_BEEN_DELETED)
 async def delete_user_application(
-    application_id: int,
+    application_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    user_applications_id = [application.id for application in user.applications]  # type: ignore
-    if application_id not in user_applications_id:
+    if not have_user_application(db, user.id, application_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknown application"
-        )
+            detail=APPLICATION_NOT_FOUND)
     
     delete_application(db, application_id)
 
 
-@router.get("/get_all_submitted", summary="Get all user's submitted applications")
-async def get_all_submitted_applications(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
-    return {"applications": [validate_application_for_user(db, user.id, application) for application in user.applications]}  # type: ignore
-
-
-@router.get("/get_all_for_consideration", summary="Get all user's applications for consideration")
-async def get_all_applications_for_consideration(user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    timetables_id = get_timetables_id_where_user_is_elder(db, user.id)
-    if not timetables_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="The user doesn't have timetables, where he is the elder"
-        )
-
-    applications = []
-    for timetable_id in timetables_id:
-        applications.extend(get_applications_by_timetable_id(db, timetable_id))
-
-    return {"applications": [validate_application(db, application) for application in applications]}  # type: ignore
-
-
-@router.post("/accept", summary="Add timetable to user")
-async def accept_application(
-    application_id: int,
+@router.post(
+    path="/application/{application_id}/accept",
+    summary="Add timetable to user",
+    status_code=status.HTTP_200_OK,
+    response_description=APPLICATION_HAS_BEEN_ACCEPTED)
+async def accept_user_application(
+    application_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
     application = get_application_by_id(db, application_id)
+    
     if not application:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknown application"
-        )
+            detail=APPLICATION_NOT_FOUND)
     
-    user_timetables_id = [timetable.id for timetable in user.timetables_info]  # type: ignore
-    if application.id_timetable not in user_timetables_id:  
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="The user doesn't have this timetable"
-        )
-    
-    timetable_user_status = get_timetable_user_status(db, user.id, application.id_timetable)  # type: ignore
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(
+        db, user.id, application.id_timetable):  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to add another users to this timetable"
-        )
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
     delete_application(db, application.id)
 
-    user_timetables = get_timetable_users_relation_by_user_id(db, application.id)
-    if len(user_timetables) >= 10:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user has too many timetables"
-        )
-
-    timetable_user_relation = get_timetable_user_relation_by_user_id_and_timetable_id(db, application.id_user, application.id_timetable)  # type: ignore
-    if timetable_user_relation:
+    if not is_possible_to_add_new_timetable(db, application.id_user):  # type: ignore
         raise HTTPException(
             status_code = status.HTTP_403_FORBIDDEN,
-            detail="The user already has this timetable"
-        )    
+            detail = TIMETABLE_LIMIT_HAS_BEEN_REACHED)
 
-    create_timetable_user_relation(db, application.id_user, application.id_timetable)  # type: ignore
-    create_tasks_user_relation_in_timetable(db, application.id_timetable, application.id_user)  # type: ignore
+    if exists_timetable_user_relation(
+        db, application.id_user, application.id_timetable):  # type: ignore
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail=APPLICATION_TO_USER_TIMETABLE)    
+
+    accept_application(db, application)
 
 
-@router.delete("/reject", summary="Reject an application")
-async def reject_application(
-    application_id: int,
+@router.delete(
+    path="/application/{application_id}/reject",
+    summary="Reject an application",
+    status_code=status.HTTP_200_OK,
+    response_description=APPLICATION_HAS_BEEN_REJECTED)
+async def reject_user_application(
+    application_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
     application = get_application_by_id(db, application_id)
+
     if not application:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Unknown application"
-        )
+            detail=APPLICATION_NOT_FOUND)
     
-    user_timetables_id = [timetable.id for timetable in user.timetables_info]  # type: ignore
-    if application.id_timetable not in user_timetables_id:  
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="The user doesn't have this timetable"
-        )
-    
-    timetable_user_status = get_timetable_user_status(db, user.id, application.id_timetable)  # type: ignore
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(
+        db, user.id, application.id_timetable):  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to add another users to this timetable"
-        )
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
     delete_application(db, application.id)

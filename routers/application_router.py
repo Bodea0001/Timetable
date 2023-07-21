@@ -88,7 +88,7 @@ async def delete_user_application(
 
 @router.post(
     path="/application/{application_id}/accept",
-    summary="Add timetable to user",
+    summary="Одобряет заявку на добавление к расписанию",
     status_code=status.HTTP_200_OK,
     response_description=APPLICATION_HAS_BEEN_ACCEPTED)
 async def accept_user_application(
@@ -127,7 +127,7 @@ async def accept_user_application(
 
 @router.delete(
     path="/application/{application_id}/reject",
-    summary="Reject an application",
+    summary="Отклоняет заявку на добавление к расписанию",
     status_code=status.HTTP_200_OK,
     response_description=APPLICATION_HAS_BEEN_REJECTED)
 async def reject_user_application(

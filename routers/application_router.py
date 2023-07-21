@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from sql import models
-from models import schemas
 from controllers.db import get_db
 from controllers.user import get_current_user
 from controllers.application import accept_application

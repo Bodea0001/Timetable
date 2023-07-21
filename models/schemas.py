@@ -238,26 +238,18 @@ class TimetableUser(TimetableUserCreate):
 
 class ApplicationBase(BaseModel):
     id: int
-    id_timetable: int
     creation_date: datetime
 
 
-class Application(ApplicationBase):
-    id_user: int
-
-
-class ApplicationOut(ApplicationBase):
+class ApplicationForConsideration(ApplicationBase):
+    id_timetable: int
     user_email: str
     user_first_name: str
     user_last_name: str
 
-class ApplicationOutForUser(ApplicationBase):
-    timetable_name: str
-    timetable_university: str
-    timetable_specialization_name: str
-    timetable_specialization_code: str
-    timetable_education_level: Education_level
-    timetable_course: int
+
+class UserApplication(ApplicationBase):
+    timetable: TimetableOutLite
 
 
 class UserUpdate(BaseModel):
@@ -281,14 +273,16 @@ class UserPublicInformation(UserBase):
 class UserOutLite(UserBase):
     id: int
     tg_user_id: int | None = None
-    applications: list[ApplicationBase]
+    user_applications: list[UserApplication]
+    applications_for_consideration: list[ApplicationForConsideration]
     timetables_info: list[TimetableOutLite]
 
 
 class UserOut(UserBase):
     id: int
     tg_user_id: int | None = None
-    applications: list[ApplicationOutForUser]
+    user_applications: list[UserApplication]
+    applications_for_consideration: list[ApplicationForConsideration]
     timetables_info: list[TimetableOut]
 
 
@@ -300,7 +294,8 @@ class User(UserBase):
     id: int
     registry_date: datetime
     tg_user_id: int | None = None
-    applications: list[ApplicationBase]
+    user_applications: list[UserApplication]
+    applications_for_consideration: list[ApplicationForConsideration]
     refresh_tokens: list[str]
     white_list_ip: list[str]
     timetables_info: list[Timetable]

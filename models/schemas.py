@@ -274,6 +274,10 @@ class UserBase(BaseModel):
         orm_mode = True
 
 
+class UserPublicInformation(UserBase):
+    pass
+
+
 class UserOutLite(UserBase):
     id: int
     tg_user_id: int | None = None

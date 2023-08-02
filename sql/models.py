@@ -144,9 +144,9 @@ class Timetable(Base):  # type: ignore
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False)
-    id_university = Column(ForeignKey("university.id"), nullable=False)
-    id_specialization = Column(ForeignKey("specialization.id"), nullable=False)
-    course = Column(Integer, nullable=False)
+    id_university = Column(ForeignKey("university.id"))
+    id_specialization = Column(ForeignKey("specialization.id"))
+    course = Column(Integer)
     creation_date = Column(DateTime, default=datetime.utcnow())
 
     upper_week_items = relationship("UpperWeek", cascade="all, delete")

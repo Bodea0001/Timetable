@@ -1,250 +1,198 @@
-from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 
+from sql import models
 from models import schemas
+from crud.timetable_user import (
+    delete_timetable_user_relation,
+    have_user_enough_rights_in_timetable
+)
+from crud.timetable import (
+    get_timetables,
+    delete_timetable,
+    exists_timetable_with_timetable_data,
+    exists_timetable_with_user_id_and_name, 
+)
 from controllers.db import get_db
 from controllers.user import get_current_user
 from controllers.timetable import (
-    check_course,
     check_timetable,
-    check_university,
-    get_specialization,
-    validate_timetable,
-    get_valid_timetable,
-    get_current_timetable,
-    get_valid_timetable_lite,
-    check_user_limit_timetables
-)
-from sql import models
-from sql.crud import ( 
-    get_university,
-    get_timetables,
-    create_timetable,
     update_timetable,
-    delete_timetable,
-    create_timetable_user,
-    get_timetable_user_status,
-    delete_timetable_user_relation,
-    get_timetable_by_name_and_user_id,
-    get_timetable_by_name_university_id_specialization_id_course,
+    get_valid_timetable,
+    get_valid_timetables,
+    get_valid_timetable_lite,
+    get_valid_timetables_lite,
+    create_timetable_for_user,
+    is_possible_to_add_new_timetable,
+    validate_timetable_data_to_search,
+    validate_timetable_data_to_create_or_update,
+)
+from message import (
+    ELDER_CANT_LEAVE,
+    LEAVING_TIMETABLE,
+    DELETING_TIMETABLE,
+    DUPLICATE_TIMETABLE,
+    ARGUMENTS_NOT_PASSED,
+    SEARCH_YIELDED_NO_RESULTS,
+    DUPLICATE_OF_TIMETABLE_NAME,
+    USER_DOESNT_HAVE_ENOUGH_RIGHTS, 
+    TIMETABLE_LIMIT_HAS_BEEN_REACHED,
 )
 
 
-router = APIRouter(
-    prefix="/timetable",
-    tags=["timetable"]
-)
+router = APIRouter(prefix="/timetable", tags=["timetable"])
+
+
+@router.get(
+    path='/my',
+    summary="Возвращает расписания пользователя",
+    response_model=list[schemas.TimetableOut],
+    status_code=status.HTTP_200_OK)
+async def get_user_timetable(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    return get_valid_timetables(db, user.timetables_info, user.id)  # type: ignore
+
+
+@router.get(
+    path='/my/lite',
+    summary="Возвращает расписания пользователя в упрощенном виде",
+    response_model=list[schemas.TimetableOutLite],
+    status_code=status.HTTP_200_OK)
+async def get_user_timetable_lite(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user)
+):
+    return get_valid_timetables_lite(db, user.timetables_info)  # type: ignore
+
+
+@router.get(
+    path="/find",
+    summary="Находит расписания по данным",
+    response_model=list[schemas.TimetableOutLite],
+    status_code=status.HTTP_200_OK)
+async def find_timetables(
+    search_data: schemas.TimetableSearchRequestForm = Depends(),
+    skip: int = Query(default=0, ge=0),
+    size: int = Query(default=10, gt=0, le=10),
+    db: Session = Depends(get_db)
+):
+    if not search_data.have_any_arguments():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ARGUMENTS_NOT_PASSED)
+
+    valid_search_data = validate_timetable_data_to_search(db, search_data)
+
+    timetables = get_timetables(db, valid_search_data, skip, size)  
+    if not timetables:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=SEARCH_YIELDED_NO_RESULTS)
+
+    return get_valid_timetables_lite(db, timetables)
 
 
 @router.post(
     path="/create",
+    summary="Создаёт новое расписание",
     response_model=schemas.TimetableOutLite,
-    summary="Create a new timetable",
-    description="Create a new timetable by name, university, specialization, education level, course, user id, status", 
     status_code=status.HTTP_201_CREATED)
 async def create_new_timetable(
     form_data: schemas.TimetableRequestForm = Depends(),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    check_user_limit_timetables(user.timetables_info)  # type: ignore
+    if not is_possible_to_add_new_timetable(db, user.id):
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = TIMETABLE_LIMIT_HAS_BEEN_REACHED)
 
-    university = check_university(db, form_data.university)
+    if exists_timetable_with_user_id_and_name(db, form_data.name, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=DUPLICATE_OF_TIMETABLE_NAME)
 
-    specialization = get_specialization(
-        db, form_data.specialization_name,
-        form_data.specialization_code, form_data.education_level)
-
-    check_course(form_data.course, specialization.education_level)  # type: ignore
+    timetable_data = validate_timetable_data_to_create_or_update(db, form_data)
         
-    timetable = get_timetable_by_name_and_user_id(db, form_data.name, user.id)
-    if timetable:
+    if exists_timetable_with_timetable_data(db, timetable_data):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account already have timetable with this name")
+            detail=DUPLICATE_TIMETABLE)
 
-    timetable = get_timetable_by_name_university_id_specialization_id_course(
-        db, form_data.name, university.id, specialization.id, form_data.course)
-    if timetable:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Timetable with this data already exists")
+    timetable = create_timetable_for_user(db, timetable_data, user.id)
 
-    timetable_data = schemas.TimetableCreate(
-        name=form_data.name,
-        id_university=university.id,  # type: ignore
-        id_specialization=specialization.id,  # type: ignore 
-        course=form_data.course)
-    db_timetable = create_timetable(db, timetable_data)
-
-    timetable_user_relation = schemas.TimetableUserCreate(
-        id_user = user.id,  # type: ignore
-        id_timetable = db_timetable.id,  # type: ignore
-        status = schemas.TimetableUserStatuses.elder)
-    create_timetable_user(db, timetable_user_relation)
-
-    return validate_timetable(
-        db_timetable, 
-        university, 
-        specialization, 
-        user.id, 
-        timetable_user_relation.status)
-
-
-@router.get(
-    path='/get_user_timetables',
-    response_model=list[schemas.TimetableOut],
-    summary="Get user's timetables",
-    description="Get user's timetables user id")
-async def get_user_timetable(
-    db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)):
-    return [get_valid_timetable(db, timetable, user.id)
-            for timetable in user.timetables_info]  # type: ignore
-
-
-@router.get(
-    path='/get_user_timetables/lite',
-    response_model=list[schemas.TimetableOutLite],
-    summary="Get user's timetables",
-    description="Get user's timetables user id")
-async def get_user_timetable_lite(
-    db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)
-):
-    return [get_valid_timetable_lite(db, timetable)
-            for timetable in user.timetables_info]  # type: ignore
+    return get_valid_timetable_lite(db, timetable)
 
 
 @router.patch(
-    path="/update",
+    path="/{timetable_id}/update",
+    summary="Обновляет данные расписания",
     response_model=schemas.TimetableOut,
-    summary="Update user's timetable")
+    status_code=status.HTTP_200_OK)
 async def update_user_timetable(
-    timetable_id: int,
+    timetable_id: int = Path(gt=0),
     form_data: schemas.TimetableRequestForm = Depends(),
+    db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    check_timetable(user, timetable_id)
-    
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+):    
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to change this timetable")
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
     
-    university = check_university(db, form_data.university)
+    if exists_timetable_with_user_id_and_name(db, form_data.name, user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=DUPLICATE_OF_TIMETABLE_NAME)
 
-    specialization = get_specialization(
-        db, form_data.specialization_name, 
-        form_data.specialization_code, form_data.education_level)
-
-    check_course(form_data.course, specialization.education_level)  # type: ignore
+    timetable_data = validate_timetable_data_to_create_or_update(db, form_data)
         
-    timetable = get_timetable_by_name_and_user_id(db, form_data.name, user.id)
-    if timetable:
+    if exists_timetable_with_timetable_data(db, timetable_data):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This account already have timetable with this name")
+            detail=DUPLICATE_TIMETABLE)
 
-    timetable = get_timetable_by_name_university_id_specialization_id_course(
-        db, form_data.name, university.id, specialization.id, form_data.course)
-    if timetable:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The timetable with this data already exists")
+    timetable = update_timetable(db, timetable_id, timetable_data)
 
-    timetable_data = schemas.TimetableCreate(
-        name=form_data.name,
-        id_university=university.id,  # type: ignore
-        id_specialization=specialization.id,  # type: ignore 
-        course=form_data.course)
-    update_timetable(db, timetable_id, timetable_data)
-
-    return get_current_timetable(db, form_data.name, user.id)
+    return get_valid_timetable(db, timetable, user.id)
 
 
-@router.delete("/delete_for_all", summary="Delete timetable for all")
+@router.delete(
+    path="/{timetable_id}/delete",
+    summary="Удаляет расписание для всех",
+    status_code=status.HTTP_200_OK,
+    response_description=DELETING_TIMETABLE)
 async def delete_timetable_for_all(
-    timetable_id: int,
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    check_timetable(user, timetable_id)
-
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"User doesn't have access rights to delete this timetable")
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
         
     delete_timetable(db, timetable_id)
 
 
-@router.delete("/delete_for_user", summary="Delete timetable for the user")
+@router.delete(
+    path="/{timetable_id}/leave",
+    summary="Удаляет расписание у пользователя",
+    status_code=status.HTTP_200_OK,
+    response_description=LEAVING_TIMETABLE)
 async def delete_timetable_for_user(
-    timetable_id: int,
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
     check_timetable(user, timetable_id)
 
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status == schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(
+        db, user.id, timetable_id, [schemas.TimetableUserStatuses.user]):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The elder can delete the timetable only for all user's")  
+            status_code=status.HTTP_403_FORBIDDEN,  
+            detail=ELDER_CANT_LEAVE) 
     
     delete_timetable_user_relation(db, user.id, timetable_id)
-
-
-@router.get(
-    path="/find",
-    response_model=list[schemas.TimetableOutLite],
-    summary="Find timetables",
-    description="Find timetables by name, university, specialization, course")
-async def find_timetables(
-    name: str | None = None,
-    university: str | None = None,
-    specialization_name: str | None = None,
-    specialization_code: str | None = None,
-    education_level: schemas.Education_level | None = None,
-    course: int | None = None,
-    skip: int = 0,
-    db: Session = Depends(get_db)
-):
-    if not any([name, university, specialization_name, specialization_code, course]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Arguments not passed")
-
-    if not name:
-        name = models.Timetable.name  # type: ignore
-        
-    if university:
-        university = get_university(db, university)
-        university_id = university.id  # type: ignore
-    else:
-        university_id = models.Timetable.id_university
-
-    if specialization_name or specialization_code:
-        specialization = get_specialization(
-            db, specialization_name, specialization_code, education_level)
-        specialization_id = specialization.id
-    else:
-        specialization_id = models.Timetable.id_specialization
-
-    if not course:
-        course = models.Timetable.course  # type: ignore
-    else:
-        check_course(course, education_level)
-
-    db_timetables = get_timetables(
-        db, name, university_id, specialization_id, course, skip, limit=10)  # type: ignore
-    if not db_timetables:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Timetables not found")
-
-    return [get_valid_timetable_lite(db, timetable)for timetable in db_timetables]

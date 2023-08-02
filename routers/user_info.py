@@ -1,41 +1,37 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
-from sql import models
-from sql.crud import update_user
-from models import schemas
+from sql.models import User
+from models.schemas import UserOut, UserUpdate
+from crud.user import update_user
 from controllers.db import get_db
 from controllers.user import get_current_user, get_valid_user
 
-router = APIRouter(
-    prefix="/user",
-    tags=["user"]
-)
+
+router = APIRouter(prefix="/user", tags=["user"])
 
 
 @router.get(
-    path="/get_info",
-    response_model=schemas.UserOut,
-    summary="Get information about user",
-    description="Get information about user by access token",
-)
-async def read_user(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    path="/me",
+    summary="Отдаёт информацию о пользователе с помощью access токена",
+    status_code=status.HTTP_200_OK,
+    response_model=UserOut)
+async def read_user(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     return get_valid_user(db, user)
+
 
 @router.patch(
     path="/update",
-    response_model=schemas.UserOut,
-    summary="Update first_name, last_name",
-)
+    summary="Обновляет имя и фамилию пользователя",
+    status_code=status.HTTP_201_CREATED,
+    response_model=UserOut)
 async def update_user_information(
-    first_name: str,
-    last_name: str,
+    user_data: UserUpdate,
     db: Session = Depends(get_db),
-    user: models.User = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
-    user_data = schemas.UserUpdate(
-        first_name=first_name.capitalize(),
-        last_name=last_name.capitalize(),
-    )
     update_user(db, user.id, user_data)
     return get_valid_user(db, user)

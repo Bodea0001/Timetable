@@ -1,8 +1,8 @@
-from fastapi import Form
-from pydantic import BaseModel, EmailStr
-from fastapi.security import OAuth2PasswordRequestForm
-from datetime import datetime, time
 from enum import Enum
+from fastapi import Form
+from datetime import datetime, time
+from pydantic import BaseModel, EmailStr, validator
+from fastapi.security import OAuth2PasswordRequestForm
 
 
 class AccessToken(BaseModel):
@@ -179,6 +179,26 @@ class LowerWeek(Week):
     subjects: list[LowerDaySubjects]
 
 
+class TimetableSearchRequestForm(BaseModel):
+    name: str | None
+    university: str | None
+    specialization_name: str | None
+    specialization_code: str | None
+    education_level: Education_level | None    
+    course: int | None
+
+    def have_any_arguments(self):
+        return any([self.name, self.university, self.specialization_name, 
+                    self.specialization_code, self.education_level, self.course])
+
+
+class TimetableSearch(BaseModel):
+    name: str | None
+    id_university: int | None
+    id_specialization: int | None
+    course: int | None
+
+
 class TimetableBase(BaseModel):
     name: str
     course: int
@@ -188,16 +208,16 @@ class TimetableBase(BaseModel):
 
 
 class TimetableCreate(TimetableBase):
-    id_university: int
-    id_specialization: int
+    id_university: int | None
+    id_specialization: int | None
 
 
 class TimetableOutLite(TimetableBase):
     id: int
-    university: str
-    specialization_name: str
-    specialization_code: str
-    education_level: Education_level
+    university: str | None
+    specialization_name: str | None
+    specialization_code: str | None
+    education_level: Education_level | None
     creation_date: datetime
 
 
@@ -217,8 +237,8 @@ class TimetableOut(TimetableOutLite):
 
 class Timetable(TimetableBase):
     id: int
-    id_university: int
-    id_specialization: int
+    id_university: int | None
+    id_specialization: int | None
     creation_date: datetime
 
     upper_week_items: list[UpperWeek]
@@ -256,6 +276,10 @@ class UserUpdate(BaseModel):
     first_name: str
     last_name: str
 
+    @validator("first_name", "last_name", pre=True, always=True)
+    def capitalize_attributes(cls, attribute: str):
+        return attribute.capitalize()
+
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -267,7 +291,7 @@ class UserBase(BaseModel):
 
 
 class UserPublicInformation(UserBase):
-    pass
+    id: int
 
 
 class UserOutLite(UserBase):
@@ -350,8 +374,8 @@ class TimetableRequestForm:
     def __init__(
         self,
         name: str = Form(),
-        university: str = Form(),
-        specialization_name: str | None= Form(default=None),
+        university: str | None = Form(default=None),
+        specialization_name: str | None = Form(default=None),
         specialization_code: str | None = Form(default=None),
         education_level: Education_level | None = Form(default=None),
         course: int = Form(ge=1, le=5)

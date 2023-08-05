@@ -14,7 +14,7 @@ def get_user(db: Session, username: str | Column[String]) -> models.User | None:
 def get_public_information_about_user(
     db: Session,
     user_id: int | Column[Integer]
-) -> schemas.UserPublicInformation | None:
+) -> models.User | None:
     """Отдаёт почту, фамилию и имя пользователя из БД по его ID, если 
     пользователь с таким ID существует. В противном случае ничего не возвращает"""
     user_public_info: models.User | None =  db.query(
@@ -23,11 +23,7 @@ def get_public_information_about_user(
         models.User.last_name
     ).filter(models.User.id == user_id).first()
 
-    if user_public_info:
-        return schemas.UserPublicInformation(
-            email=user_public_info.email,
-            first_name=user_public_info.first_name,
-            last_name=user_public_info.last_name)
+    return user_public_info
 
 
 def update_user(

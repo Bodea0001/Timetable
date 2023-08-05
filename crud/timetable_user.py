@@ -52,6 +52,24 @@ def get_timetable_users_id(
     return [user_id[0] for user_id in users_id]
 
 
+def get_public_information_about_users_in_timetable(
+    db: Session,
+    timetable_id: int | Column[Integer]
+) -> list[models.User]:
+    """Отдаёт почту, фамилию и имя пользователей в расписании из БД 
+    по ID этого расписания"""
+    users_public_info =  db.query(
+        models.User.id, 
+        models.User.email, 
+        models.User.first_name, 
+        models.User.last_name
+    ).join(
+        models.TimetableUser, 
+        models.TimetableUser.id_timetable == timetable_id).all()
+
+    return users_public_info
+
+
 def exists_timetable_user_relation(
         db: Session, user_id: int | Column[Integer], 
         timetable_id: int | Column[Integer]) -> bool:

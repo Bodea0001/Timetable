@@ -82,10 +82,10 @@ class Task(Base):  # type: ignore
 
     id = Column(Integer, primary_key=True, index=True)
     id_timetable = Column(ForeignKey("timetable.id", ondelete="CASCADE"))
+    id_creator = Column(ForeignKey("user.id", ondelete="CASCADE"))
     description = Column(Text, nullable=False)
     subject = Column(String(150))
     deadline = Column(DateTime, nullable=False)
-    tag = Column(String(20), nullable=False)
     creation_date = Column(DateTime, default=datetime.utcnow())
 
     statuses = relationship("TaskStatuses", cascade="all, delete")

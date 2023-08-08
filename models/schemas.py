@@ -64,28 +64,26 @@ class TaskStatuses(TaskStatusesBase):
 
 # Task Base Nodel
 class TaskBase(BaseModel):
-    id_timetable: int
     description: str
     deadline: datetime
-    subject: str
+    subject: str | None
 
     class Config:
         orm_mode = True
 
 
-class TaskTags(str, Enum):
-    one = "один"
-    all = "все"
+class TaskCreate(TaskBase):
+    id_users: list[int]
 
 
 class TaskUpdate(TaskBase):
-    id: int
+    pass
 
     
 # Task Out Model inherit from TaskBase
 class TaskOutForUser(TaskBase):
     id: int
-    tag: TaskTags
+    id_timetable: int
     status: TaskStatusesEnum
     creation_date: datetime
 
@@ -98,14 +96,15 @@ class TaskStatusesOut(TaskStatusesBase):
 
 class TaskOutForElder(TaskBase):
     id: int
-    tag: TaskTags
+    id_timetable: int
     statuses: list[TaskStatusesOut]
     creation_date: datetime
 
 
 class Task(TaskBase):
     id: int
-    tag: TaskTags
+    id_timetable: int
+    id_creator: int
     statuses: list[TaskStatuses]
     creation_date: datetime
 
@@ -179,6 +178,19 @@ class LowerWeek(Week):
     subjects: list[LowerDaySubjects]
 
 
+class UserBase(BaseModel):
+    email: EmailStr
+    first_name: str
+    last_name: str
+
+    class Config:
+        orm_mode = True
+
+
+class UserPublicInformation(UserBase):
+    id: int
+
+
 class TimetableSearchRequestForm(BaseModel):
     name: str | None
     university: str | None
@@ -233,6 +245,7 @@ class TimetableOut(TimetableOutLite):
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
     tasks: list[TaskOutForUser]
+    users: list[UserPublicInformation]
 
 
 class Timetable(TimetableBase):
@@ -281,19 +294,6 @@ class UserUpdate(BaseModel):
         return attribute.capitalize()
 
 
-class UserBase(BaseModel):
-    email: EmailStr
-    first_name: str
-    last_name: str
-
-    class Config:
-        orm_mode = True
-
-
-class UserPublicInformation(UserBase):
-    id: int
-
-
 class UserOutLite(UserBase):
     id: int
     tg_user_id: int | None = None
@@ -323,6 +323,7 @@ class User(UserBase):
     refresh_tokens: list[str]
     white_list_ip: list[str]
     timetables_info: list[Timetable]
+
 
 class UserRefreshToken(BaseModel):
     id: int

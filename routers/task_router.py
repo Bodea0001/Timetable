@@ -32,6 +32,7 @@ from controllers.task_controller import (
     get_valid_task,
     get_valid_task_by_id,
     get_valid_tasks_in_timetable,
+    is_all_users_attached_to_timetable,
     get_valid_tasks_in_timetable_by_date,
 )
 from message import (
@@ -42,7 +43,8 @@ from message import (
     USER_DOESNT_HAVE_TIMETABLE,
     TASK_IS_NOT_ATTACHED_TO_USER,
     TASK_IS_NOT_ATTACHED_TO_TIMETABLE,
-    USERS_CANT_CREATE_TASKS_FOR_OTHER
+    USERS_CANT_CREATE_TASKS_FOR_OTHER,
+    NOT_ALL_USERS_ARE_ATTACHED_TO_TIMETALBE
 )
 
 
@@ -66,11 +68,17 @@ async def create_task_in_timetable(
             detail=USER_DOESNT_HAVE_TIMETABLE)
 
     timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if (timetable_user_status == [TimetableUserStatuses.user] and 
+    if (timetable_user_status == TimetableUserStatuses.user and 
         [user.id] != task.id_users):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=USERS_CANT_CREATE_TASKS_FOR_OTHER)
+    
+    if (timetable_user_status == TimetableUserStatuses.elder and
+        not is_all_users_attached_to_timetable(db, task.id_users, timetable_id)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=NOT_ALL_USERS_ARE_ATTACHED_TO_TIMETALBE)
 
     task = create_task(db, timetable_id, task, user.id)
 

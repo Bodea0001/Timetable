@@ -14,7 +14,6 @@ from crud.timetable_user import (
 )
 from crud.timetable import get_timetable_by_id
 from crud.user import get_public_information_about_user
-from crud.task import create_tasks_user_relation_in_timetable
 from crud.application import get_applications_by_list_with_timetables_id
 from controllers.timetable import get_valid_timetable_lite
 
@@ -24,17 +23,14 @@ def accept_application(
         application: Application,
         status: TimetableUserStatuses = TimetableUserStatuses.user):
     """Одобряет заявку пользователя на добавление к расписанию, т.е. добавляет
-    пользователю расписание и все задачи этого расписания с тегом "все".
-    При добавлении пользователя в расписание со статусом "пользователь" 
-    (можно изменить при помощи параметра "status")"""
+    пользователя в расписание со статусом "пользователь" (можно изменить 
+    при помощи параметра "status")"""
     timetable_user_relation = TimetableUserCreate(
         id_user = application.id_user,  # type: ignore
         id_timetable = application.id_timetable,  # type: ignore
         status = status
     )
     create_timetable_user_relation(db, timetable_user_relation)
-    create_tasks_user_relation_in_timetable(
-        db, application.id_timetable, application.id_user)  # type: ignore
 
 
 def _validate_user_application(

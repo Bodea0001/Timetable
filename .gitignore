@@ -6,3 +6,4 @@
 /.idea
 /my_timetable.json
 /migrations
+/alembic.ini

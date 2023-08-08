@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, exists
 from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer, exists, and_
 
 from sql import models
 from models import schemas
@@ -10,68 +10,55 @@ def exists_timetable(db: Session, timetable_id: int | Column[Integer]) -> bool:
     return db.query(exists().where(models.Timetable.id == timetable_id)).scalar()
 
 
+def exists_timetable_with_user_id_and_name(
+        db: Session, name: str, user_id: int | Column[Integer]) -> bool:
+    """Проверяет, есть ли расписание у пользователя с данным наименованием"""
+    return db.query(exists().where(and_(
+        models.TimetableUser.id_user==user_id, 
+        models.Timetable.name == name))).scalar()
+
+
+def exists_timetable_with_timetable_data(
+        db: Session, data: schemas.TimetableCreate) -> bool:
+    """Проверяет, существует ли расписание с такими данными"""
+    return db.query(exists().where(and_(
+        models.Timetable.name == data.name,
+        models.Timetable.id_university == data.id_university,
+        models.Timetable.id_specialization == data.id_specialization,
+        models.Timetable.course == data.course))).scalar()
+
+
 def get_timetables(
-    db: Session,
-    timetable_name: str | Column[String],
-    university_id: int | Column[Integer],
-    specialization_id: int | Column[Integer],
-    course: int | Column[Integer],
-    skip: int,
-    limit: int,
-) -> list[models.Timetable] | None:
+        db: Session, data: schemas.TimetableSearch, skip: int, size: int,
+    ) -> list[models.Timetable] | None:
     """Находит в БД расписания, удовлетворяющие условиям и отдает список из
     расписаний, если такие расписания нашлись"""
-    return db.query(models.Timetable).filter(
-        models.Timetable.name == timetable_name,
-        models.Timetable.id_university == university_id,
-        models.Timetable.id_specialization == specialization_id,
-        models.Timetable.course == course,
-    ).offset(skip).limit(limit).all()
+    dct = {
+        0: models.Timetable.id_university,
+        1: models.Timetable.id_specialization,
+        2: models.Timetable.course
+    }
+    args = (data.id_university, data.id_specialization, data.course)
+    lst = [dct[i] == arg for i, arg in enumerate(args) if arg]
+    if data.name:
+        lst.append(models.Timetable.name.ilike(f"%{data.name}%"))
 
-
-def get_timetable_by_name_and_user_id(
-    db: Session,
-    timetable_name: str | Column[String],
-    user_id: int | Column[Integer],
-) -> models.Timetable | None:
-    """Находит расписание по названию расписания и id пользователя и отдает его"""
-    return db.query(models.Timetable).join(
-        models.TimetableUser,
-        models.TimetableUser.id_user == user_id
-    ).filter(models.Timetable.name == timetable_name).first()
+    return db.query(models.Timetable).filter(and_(*lst)).order_by(
+        models.Timetable.name).offset(skip).limit(size).all()
 
 
 def get_timetable_by_id(
-    db: Session, 
-    timetable_id: int | Column[Integer]
-) -> models.Timetable | None:
+        db: Session, timetable_id: int | Column[Integer]
+    ) -> models.Timetable | None:
     """Находит и отдает расписание по его id"""
     return db.query(models.Timetable).filter(
         models.Timetable.id == timetable_id
     ).first()
 
 
-def get_timetable_by_name_university_id_specialization_id_course(
-    db: Session,
-    name: str | Column[String],
-    university_id: int | Column[Integer],
-    specialization_id: int | Column[Integer],
-    course: int | Column[Integer],
-) -> models.Timetable | None:
-    """Находит расписание по его названию, университету, специальности и курсу
-    и отдаёт его"""
-    return db.query(models.Timetable).filter(
-        models.Timetable.name == name,
-        models.Timetable.id_university == university_id,
-        models.Timetable.id_specialization == specialization_id,
-        models.Timetable.course == course
-    ).first()
-
-
 def get_timetables_id_where_user_is_elder(
-    db: Session, 
-    user_id: int | Column[Integer]
-) -> list[int] | None:
+        db: Session, user_id: int | Column[Integer]
+    ) -> list[int] | None:
     """Отдаёт id расписаний, где пользователь является старостой"""
     timetables_id = db.query(models.TimetableUser.id_timetable).filter(
         models.TimetableUser.id_user == user_id,
@@ -81,9 +68,8 @@ def get_timetables_id_where_user_is_elder(
 
 
 def create_timetable(
-    db: Session, 
-    timetable: schemas.TimetableCreate
-) -> models.Timetable:
+        db: Session, timetable: schemas.TimetableCreate
+    ) -> models.Timetable:
     """Создаёт расписание в БД и отдаёт его"""
     db_timetable = models.Timetable(
         name = timetable.name,
@@ -97,11 +83,10 @@ def create_timetable(
     return db_timetable
 
 
-def update_timetable(
-    db: Session, 
-    timetable_id: int | Column[Integer], 
-    timetable_data: schemas.TimetableCreate
-):
+def update_timetable_data(
+        db: Session, 
+        timetable_id: int | Column[Integer], 
+        timetable_data: schemas.TimetableCreate):
     """Обновляет данные о расписании"""
     db.query(models.Timetable).filter(
         models.Timetable.id == timetable_id

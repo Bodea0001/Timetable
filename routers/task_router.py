@@ -113,7 +113,7 @@ async def get_timetable_tasks_for_elder(
     path="/filter",
     summary="Фильтрует задачи расписания по дате",
     status_code=status.HTTP_200_OK,
-    response_model=list[TaskOutForUser])
+    response_model=list[TaskOutForUser] | list[TaskOutForElder])
 async def filter_user_tasks_by_date(
     timetable_id: int = Path(gt=0),
     date: date = Query(),

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from sql import models
 from models import schemas
 from crud.timetable_user import (
+    exists_timetable_user_relation,
     delete_timetable_user_relation,
     have_user_enough_rights_in_timetable
 )
@@ -16,7 +17,6 @@ from crud.timetable import (
 from controllers.db import get_db
 from controllers.user import get_current_user
 from controllers.timetable import (
-    check_timetable,
     update_timetable,
     get_valid_timetable,
     get_valid_timetables,
@@ -34,6 +34,7 @@ from message import (
     DUPLICATE_TIMETABLE,
     ARGUMENTS_NOT_PASSED,
     SEARCH_YIELDED_NO_RESULTS,
+    USER_DOESNT_HAVE_TIMETABLE,
     DUPLICATE_OF_TIMETABLE_NAME,
     USER_DOESNT_HAVE_ENOUGH_RIGHTS, 
     TIMETABLE_LIMIT_HAS_BEEN_REACHED,
@@ -187,7 +188,10 @@ async def delete_timetable_for_user(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user)
 ):
-    check_timetable(user, timetable_id)
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
     if not have_user_enough_rights_in_timetable(
         db, user.id, timetable_id, [schemas.TimetableUserStatuses.user]):

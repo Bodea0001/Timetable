@@ -1,8 +1,10 @@
 from enum import Enum
-from fastapi import Form
 from datetime import datetime, time
+from fastapi import Form, HTTPException, status
 from pydantic import BaseModel, EmailStr, validator
 from fastapi.security import OAuth2PasswordRequestForm
+
+from message import INVALID_ID
 
 
 class AccessToken(BaseModel):
@@ -74,6 +76,16 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     id_users: list[int]
+
+    @validator("id_users", pre=True, always=True)
+    def capitalize_attributes(cls, attribute: list[int]):
+        for num in attribute:
+            if num <=0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=INVALID_ID)
+
+        return attribute
 
 
 class TaskUpdate(TaskBase):
@@ -149,11 +161,11 @@ class DaySubjects(DaySubjectsBase):
     id: int
 
 
-class WeekCreate(WeekBase):
+class DayCreate(WeekBase):
     subjects: list[DaySubjectsBase]
 
 
-class WeekUpdate(WeekBase):
+class DayUpdate(WeekBase):
     id: int
     subjects: list[DaySubjects]
 
@@ -244,7 +256,7 @@ class TimetableOut(TimetableOutLite):
     
     upper_week_items: list[UpperWeek]
     lower_week_items: list[LowerWeek]
-    tasks: list[TaskOutForUser]
+    tasks: list[TaskOutForUser] | list[TaskOutForElder]
     users: list[UserPublicInformation]
 
 

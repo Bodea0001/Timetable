@@ -6,7 +6,8 @@ from models import schemas
 from crud.timetable_user import (
     exists_timetable_user_relation,
     delete_timetable_user_relation,
-    have_user_enough_rights_in_timetable
+    have_user_enough_rights_in_timetable,
+    exists_another_user_timetables_with_name
 )
 from crud.timetable import (
     get_timetables,
@@ -143,7 +144,8 @@ async def update_user_timetable(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
     
-    if exists_timetable_with_user_id_and_name(db, form_data.name, user.id):
+    if exists_another_user_timetables_with_name(
+        db, form_data.name, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=DUPLICATE_OF_TIMETABLE_NAME)

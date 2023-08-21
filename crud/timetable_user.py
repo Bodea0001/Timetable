@@ -6,8 +6,7 @@ from models.schemas import TimetableUserCreate, TimetableUserStatuses
 
 
 def create_timetable_user_relation(
-        db: Session, 
-        timetable_user_relation: TimetableUserCreate):
+        db: Session, timetable_user_relation: TimetableUserCreate):
     """Привязывает пользователя и расписание"""
     db_timetable_user_relation = models.TimetableUser(
         id_user = timetable_user_relation.id_user,
@@ -20,7 +19,7 @@ def create_timetable_user_relation(
 
 def get_timetable_user_status(
         db: Session, user_id: int | Column[Integer], 
-        timetable_id: int | Column[Integer]) -> TimetableUserStatuses | None:
+        timetable_id: int | Column[Integer]) -> TimetableUserStatuses:
     """Отдаёт статус пользователя в расписании"""
     return db.query(models.TimetableUser.status).filter(
         models.TimetableUser.id_user == user_id,
@@ -52,22 +51,13 @@ def get_timetable_users_id(
     return [user_id[0] for user_id in users_id]
 
 
-def get_public_information_about_users_in_timetable(
-    db: Session,
-    timetable_id: int | Column[Integer]
-) -> list[models.User]:
+def get_users_in_timetable(
+        db: Session,timetable_id: int | Column[Integer]) -> list[models.User]:
     """Отдаёт почту, фамилию и имя пользователей в расписании из БД 
     по ID этого расписания"""
-    users_public_info =  db.query(
-        models.User.id, 
-        models.User.email, 
-        models.User.first_name, 
-        models.User.last_name
-    ).join(
+    return  db.query(models.User).join(
         models.TimetableUser, 
         models.TimetableUser.id_timetable == timetable_id).all()
-
-    return users_public_info
 
 
 def exists_timetable_user_relation(
@@ -77,6 +67,17 @@ def exists_timetable_user_relation(
     return db.query(exists().where(and_(
         models.TimetableUser.id_user == user_id,
         models.TimetableUser.id_timetable == timetable_id))).scalar()
+
+
+def exists_another_user_timetables_with_name(
+        db: Session, name: str, user_id: int | Column[Integer],
+        timetable_id: int | Column[Integer]) -> bool:
+    """Проверяет, есть ли другие расписания (кроме переданного) у пользователя 
+    с данным наименованием"""
+    return db.query(exists().where(and_(
+        models.TimetableUser.id_user==user_id, 
+        models.TimetableUser.id_timetable != timetable_id,
+        models.Timetable.name == name))).scalar()
 
 
 def have_user_enough_rights_in_timetable(

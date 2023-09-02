@@ -75,10 +75,13 @@ def get_user_tasks_in_timetable(
         db: Session, timetable_id: int | Column[Integer], 
         user_id: int | Column[Integer]) -> list[Task]:
     """Ищет и отдаёт задачи пользователя в расписании"""
-    return db.query(Task).join(
-        TaskStatuses,
-        TaskStatuses.id_user == user_id
-    ).filter(Task.id_timetable == timetable_id).all()
+    subquery = db.query(TaskStatuses.id_task).filter(
+        TaskStatuses.id_user == user_id).all()
+    
+    task_ids = [task_id[0] for task_id in subquery]
+
+    return db.query(Task).filter(
+        Task.id.in_(task_ids), Task.id_timetable == timetable_id).all()
 
 
 def is_task_attached_to_timetable(

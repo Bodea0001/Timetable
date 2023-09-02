@@ -1,14 +1,64 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer
+from sqlalchemy import Column, Integer, exists, and_
 
 from sql import models
 from models import schemas
 
 
+def exists_upper_weekly_timetable(db: Session, timetable_id: int) -> bool:
+    """Проверяет, существует ли верхне-недельное расписание"""
+    return db.query(exists().where(
+        models.UpperWeek.id_timetable == timetable_id)).scalar()
+
+
+def exists_day_in_upper_weekly_timetable(
+        db: Session, timetable_id: int, day: schemas.Day) -> bool:
+    """Проверяет, существует ли такой день (по названию дня) 
+    в верхне-недельном расписании"""
+    return db.query(exists().where(and_(
+        models.UpperWeek.id_timetable == timetable_id,
+        models.UpperWeek.day == day))).scalar()
+
+
+def exists_day_in_upper_weekly_timetable_with_id(
+        db: Session, day_id: int, timetable_id: int) -> bool:
+    """Проверяет, существует ли такой день (по ID) 
+    в верхне-недельном расписании"""
+    return db.query(exists().where(and_(
+        models.UpperWeek.id == day_id,
+        models.UpperWeek.id_timetable == timetable_id))).scalar()
+
+
+def exists_subject_in_upper_week(
+        db: Session, timetable_id: int, subject_id: int) -> bool:
+    """Проверяет, существует ли предмет на верхней неделе"""
+    subquery = db.query(models.UpperWeek.id).filter(
+        models.UpperWeek.id_timetable == timetable_id).all()
+
+    day_ids = [day_id[0] for day_id in subquery]
+
+    return db.query(exists().where(and_(
+        models.UpperDaySubjects.id == subject_id,
+        models.UpperDaySubjects.id_upper_week.in_(day_ids)))).scalar()
+
+
+def get_upper_weekly_timetable(
+        db: Session, timetable_id: int) -> list[models.UpperWeek]:
+    """Ищет и отдаёт верхне-недельное расписание"""
+    return db.query(models.UpperWeek).filter(
+        models.UpperWeek.id_timetable == timetable_id).all()
+
+
+def get_day_in_upper_weekly_timetable_by_id(
+        db: Session, id: int) -> schemas.UpperWeek | None:
+    """Ищет и отдаёт верхне-дневное расписание по ID"""
+    return db.query(models.UpperWeek).filter(models.UpperWeek.id == id).first()
+
+
 def create_upper_weekly_timetable(
     db: Session, 
     timetable_id: int | Column[Integer], 
-    upper_weekly_timetable: list[schemas.WeekCreate]
+    upper_weekly_timetable: list[schemas.DayCreate]
 ):
     """Создаёт расписание верхней недели"""
     for upper_daily_timetable in upper_weekly_timetable:
@@ -18,7 +68,7 @@ def create_upper_weekly_timetable(
 def create_upper_week_day(
     db: Session, 
     timetable_id: int | Column[Integer], 
-    upper_daily_timetable: schemas.WeekCreate
+    upper_daily_timetable: schemas.DayCreate
 ):
     """Создаёт день верхней недели и расписание для него"""
     upper_day = _create_day_in_upper_week(db, timetable_id, upper_daily_timetable.day)
@@ -57,7 +107,7 @@ def create_upper_day_subject(
 
 def update_upper_weekly_timetable(
     db: Session, 
-    upper_weekly_timetable: list[schemas.WeekUpdate]
+    upper_weekly_timetable: list[schemas.DayUpdate]
 ):
     """Обновляет расписание верхней недели"""
     for upper_day_timetable in upper_weekly_timetable:
@@ -122,10 +172,59 @@ def delete_upper_day_subject(db: Session, subject_id: int | Column[Integer]):
     db.commit()
 
 
+def exists_lower_weekly_timetable(db: Session, timetable_id: int) -> bool:
+    """Проверяет, существует ли нижне-недельное расписание"""
+    return db.query(exists().where(
+        models.LowerWeek.id_timetable == timetable_id)).scalar()
+
+
+def exists_day_in_lower_weekly_timetable(
+        db: Session, timetable_id: int, day: schemas.Day) -> bool:
+    """Проверяет, существует ли такой день в нижне-недельном расписании"""
+    return db.query(exists().where(and_(
+        models.LowerWeek.id_timetable == timetable_id,
+        models.LowerWeek.day == day))).scalar()
+
+
+def exists_day_in_lower_weekly_timetable_with_id(
+        db: Session, day_id: int, timetable_id: int) -> bool:
+    """Проверяет, существует ли такой день (по ID) 
+    в нижне-недельном расписании"""
+    return db.query(exists().where(and_(
+        models.LowerWeek.id == day_id,
+        models.LowerWeek.id_timetable == timetable_id))).scalar()
+
+
+def exists_subject_in_lower_week(
+        db: Session, timetable_id: int, subject_id: int) -> bool:
+    """Проверяет, существует ли предмет на нижней неделе"""
+    subquery = db.query(models.LowerWeek.id).filter(
+        models.LowerWeek.id_timetable == timetable_id).all()
+
+    day_ids = [day_id[0] for day_id in subquery]
+
+    return db.query(exists().where(and_(
+        models.LowerDaySubjects.id == subject_id,
+        models.LowerDaySubjects.id_lower_week.in_(day_ids)))).scalar()
+
+
+def get_lower_weekly_timetable(
+        db: Session, timetable_id: int) -> list[models.LowerWeek]:
+    """Ищет и отдаёт нижне-недельное расписание"""
+    return db.query(models.LowerWeek).filter(
+        models.LowerWeek.id_timetable == timetable_id).all()
+
+
+def get_day_in_lower_weekly_timetable_by_id(
+        db: Session, id: int) -> models.LowerWeek | None:
+    """Ищет и отдаёт нижне-дневное расписание по ID"""
+    return db.query(models.LowerWeek).filter(models.LowerWeek.id == id).first()
+
+
 def create_lower_weekly_timetable(
     db: Session, 
     timetable_id: int | Column[Integer], 
-    lower_weekly_timetable: list[schemas.WeekCreate]
+    lower_weekly_timetable: list[schemas.DayCreate]
 ):
     """Создаёт расписание нижней недели"""
     for lower_daily_timetable in lower_weekly_timetable:
@@ -135,7 +234,7 @@ def create_lower_weekly_timetable(
 def create_lower_week_day(
     db: Session, 
     timetable_id: int | Column[Integer], 
-    lower_daily_timetable: schemas.WeekCreate
+    lower_daily_timetable: schemas.DayCreate
 ):
     """Создаёт день нижней недели и расписание для него"""
     lower_day = _create_day_in_lower_week(db, timetable_id, lower_daily_timetable.day)
@@ -176,7 +275,7 @@ def create_lower_day_subject(
 
 def update_lower_weekly_timetable(
     db: Session, 
-    lower_weekly_timetable: list[schemas.WeekUpdate]
+    lower_weekly_timetable: list[schemas.DayUpdate]
 ):
     """Обновляет расписание нижней недели"""
     for lower_day_timetable in lower_weekly_timetable:

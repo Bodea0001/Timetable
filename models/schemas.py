@@ -160,14 +160,30 @@ class DaySubjectsBase(BaseModel):
 class DaySubjects(DaySubjectsBase):
     id: int
 
+    @validator("id", pre=True, always=True)
+    def check_if_id_is_correct(cls, attribute: int):
+        if attribute <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_ID)
+        return attribute
+
 
 class DayCreate(WeekBase):
     subjects: list[DaySubjectsBase]
 
 
-class DayUpdate(WeekBase):
+class DayUpdate(BaseModel):
     id: int
     subjects: list[DaySubjects]
+
+    @validator("id", pre=True, always=True)
+    def check_if_id_is_correct(cls, attribute: int):
+        if attribute <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_ID)
+        return attribute
 
 
 class WeekOut(Week):

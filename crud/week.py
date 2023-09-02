@@ -55,6 +55,22 @@ def get_day_in_upper_weekly_timetable_by_id(
     return db.query(models.UpperWeek).filter(models.UpperWeek.id == id).first()
 
 
+def get_day_ids_in_upper_weekly_timetable(
+        db: Session, timetable_id: int) -> list[int]:
+    """Ищет и отдает id дней верхне-недельного расписания"""
+    day_ids = db.query(models.UpperWeek.id).filter(
+        models.UpperWeek.id_timetable == timetable_id).all()
+    return [day_id[0] for day_id in day_ids]
+
+
+def get_subject_ids_in_upper_daily_timetable(
+        db: Session, day_id: int) -> list[int]:
+    """Ищет и отдает id предметов верхне-дневного расписания"""
+    subject_ids = db.query(models.UpperDaySubjects.id).filter(
+        models.UpperDaySubjects.id_upper_week == day_id).all()
+    return [subject_id[0] for subject_id in subject_ids]
+
+
 def create_upper_weekly_timetable(
     db: Session, 
     timetable_id: int | Column[Integer], 
@@ -111,24 +127,8 @@ def update_upper_weekly_timetable(
 ):
     """Обновляет расписание верхней недели"""
     for upper_day_timetable in upper_weekly_timetable:
-        _update_day_in_upper_week(db, upper_day_timetable.day, upper_day_timetable.id)
         for upper_day_subject in upper_day_timetable.subjects:
             _update_upper_day_subject(db, upper_day_subject)
-
-
-def _update_day_in_upper_week(
-    db: Session, 
-    day: schemas.Day, 
-    day_id: int | Column[Integer]
-):
-    """Обновляет название дня на верхней неделе"""
-    db.query(models.UpperWeek).filter(models.UpperWeek.id == day_id).update(
-        {
-            models.UpperWeek.day: day
-        },
-        synchronize_session=False
-    )
-    db.commit()
 
 
 def _update_upper_day_subject(
@@ -221,6 +221,22 @@ def get_day_in_lower_weekly_timetable_by_id(
     return db.query(models.LowerWeek).filter(models.LowerWeek.id == id).first()
 
 
+def get_day_ids_in_lower_weekly_timetable(
+    db: Session, timetable_id: int) -> list[int]:
+    """Ищет и отдает id дней нижне-недельного расписания"""
+    day_ids = db.query(models.LowerWeek.id).filter(
+        models.LowerWeek.id_timetable == timetable_id).all()
+    return [day_id[0] for day_id in day_ids]
+
+
+def get_subject_ids_in_lower_daily_timetable(
+        db: Session, day_id: int) -> list[int]:
+    """Ищет и отдает id предметов нижне-дневного расписания"""
+    subject_ids = db.query(models.LowerDaySubjects.id).filter(
+        models.LowerDaySubjects.id_lower_week == day_id).all()
+    return [subject_id[0] for subject_id in subject_ids]
+
+
 def create_lower_weekly_timetable(
     db: Session, 
     timetable_id: int | Column[Integer], 
@@ -279,24 +295,8 @@ def update_lower_weekly_timetable(
 ):
     """Обновляет расписание нижней недели"""
     for lower_day_timetable in lower_weekly_timetable:
-        _update_day_in_lower_week(db, lower_day_timetable.day, lower_day_timetable.id)
         for lower_day_subject in lower_day_timetable.subjects:
             _update_lower_day_subject(db, lower_day_subject)
-
-
-def _update_day_in_lower_week(
-    db: Session, 
-    day: schemas.Day, 
-    day_id: int | Column[Integer]
-):
-    """Обновляет название дня на нижней неделе"""
-    db.query(models.LowerWeek).filter(models.LowerWeek.id == day_id).update(
-        {
-            models.LowerWeek.day: day
-        },
-        synchronize_session=False
-    )
-    db.commit()
 
 
 def _update_lower_day_subject(

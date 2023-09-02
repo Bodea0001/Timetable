@@ -4,6 +4,13 @@ from sqlalchemy import Column, Integer, String
 from sql import models
 
 
+def get_university_by_id(
+        db: Session, university_id: int | Column[Integer]
+    ) -> models.University | None:
+    return db.query(models.University).filter(
+        models.University.id == university_id).first()
+
+
 def get_university_id_by_name_from_db(
         db: Session, university_name: str | Column[String]
     ) -> int | None:

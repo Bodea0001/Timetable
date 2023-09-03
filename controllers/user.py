@@ -1,20 +1,25 @@
 import jwt
-from sqlalchemy import Column, Integer
 from sqlalchemy.orm import Session
+from sqlalchemy import Column, Integer
 from fastapi import Depends, HTTPException, status
 
-from sql import models
-from sql.crud import get_user, get_user_lite_by_id, get_timetable_by_id
-from models import schemas
-from models.schemas import TokenData
+from sql.models import User
 from controllers.db import get_db
 from controllers.oauth2 import oauth2_scheme
-from controllers.password import verify_password
-from controllers.timetable import get_valid_timetable, get_valid_timetable_lite
-from config import SECRET_KEY, ALGORITHM
+from controllers.application import (
+    get_valid_user_applications,
+    get_valid_applications_for_consideration, 
+)
+from controllers.timetable import get_valid_timetables
+from controllers.password import get_password_hash, verify_password
+from crud.user import get_user, create_user_in_db
+from crud.token import get_amount_of_user_refresh_tokens
+from config import SECRET_KEY, ALGORITHM, REFRESH_TOKEN_LIMIT
+from models.schemas import TokenData, UserOut, OAuth2PasswordRequestFormUpdate
 
 
 def authenticate_user(db: Session, username: str, password: str):
+    "Аутентифицирует пользователя"
     user = get_user(db, username)
     if not user:
         return False
@@ -23,12 +28,15 @@ def authenticate_user(db: Session, username: str, password: str):
     return user
 
 
-async def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+        db: Session = Depends(get_db),token: str = Depends(oauth2_scheme)
+    ) -> User:
+    "С помощью информации в токене находит и отдает информацию о пользователе"
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+        headers={"WWW-Authenticate": "Bearer"})
+
     try:
         payload = jwt.decode(token, SECRET_KEY, [ALGORITHM])
         username = payload.get("sub")
@@ -37,53 +45,44 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         token_data = TokenData(username=username)
     except jwt.PyJWTError:
         raise credentials_exception
+
     user = get_user(db, username=token_data.username)
-    if user is None:
+    if not user:
         raise credentials_exception
     return user
 
 
-def get_valid_user(db: Session, user: models.User) -> schemas.UserOut:
-    timetables = [get_valid_timetable(db, db_timetable, user.id) for db_timetable in user.timetables_info]  # type: ignore
-    applications = [validate_application_for_user(db, user.id, application) for application in user.applications]  # type: ignore
-    return schemas.UserOut(
+def get_valid_user(db: Session, user: User) -> UserOut:
+    "Отдаёт информацию о пользователе в нормальном виде"
+    timetables = get_valid_timetables(db, user.timetables_info, user.id)  # type: ignore
+    user_applications = get_valid_user_applications(db, user.applications)  # type: ignore
+    apps_for_consideration = get_valid_applications_for_consideration(db, user.id)
+    return UserOut(
         id=user.id, # type: ignore
         email=user.email, # type: ignore 
         first_name=user.first_name, # type: ignore
         last_name=user.last_name, # type: ignore
         tg_user_id=user.tg_user_id,  # type: ignore
-        applications=applications,  # type: ignore
-        timetables_info=timetables  # type: ignore
-    )
-    
-
-def validate_application_for_user(
-    db: Session, 
-    user_id: int | Column[Integer],
-    application: models.Application 
-) -> schemas.ApplicationOutForUser:
-    db_timetable = get_timetable_by_id(db, application.id_timetable)  # type: ignore
-    timetable = get_valid_timetable(db, db_timetable, user_id)  # type: ignore
-    return schemas.ApplicationOutForUser(
-        id=application.id,  # type: ignore
-        id_timetable=application.id_timetable,  # type: ignore
-        timetable_name=timetable.name,
-        timetable_university=timetable.university,
-        timetable_specialization_name=timetable.specialization_name,
-        timetable_specialization_code=timetable.specialization_code,
-        timetable_education_level=timetable.education_level,
-        timetable_course=timetable.course,
-        creation_date=application.creation_date  #type: ignore
+        user_applications=user_applications,  
+        applications_for_consideration=apps_for_consideration,
+        timetables_info=timetables
     )
 
 
-def validate_application(db: Session, application: models.Application) -> schemas.ApplicationOut:
-    user_email, user_first_name, user_last_name = get_user_lite_by_id(db, application.id_user)  # type: ignore
-    return schemas.ApplicationOut(
-        id=application.id,  # type: ignore
-        user_email=user_email,  # type: ignore
-        user_first_name=user_first_name,  # type: ignore
-        user_last_name=user_last_name,  # type: ignore
-        id_timetable=application.id_timetable,  # type: ignore
-        creation_date=application.creation_date  #type: ignore
-    )
+def is_user_refresh_tokens_limit_exceeded(
+        db: Session, user_id: int | Column[Integer]) -> bool:
+    """Проверяет, превышен ли лимит количества созданных пользователю 
+    токенов"""
+    refresh_tokens_count = get_amount_of_user_refresh_tokens(db, user_id)
+    return refresh_tokens_count > REFRESH_TOKEN_LIMIT
+
+
+def create_user(db: Session, data: OAuth2PasswordRequestFormUpdate):
+    """Валидирует входные данные и отдает их для создания пользователя в БД"""
+    data.password = get_password_hash(data.password)
+    user = User(
+        email=data.username,
+        password=data.password,
+        first_name=data.first_name.capitalize(),
+        last_name=data.last_name.capitalize())
+    return create_user_in_db(db, user)

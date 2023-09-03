@@ -1,336 +1,313 @@
-from datetime import time
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, status, Depends, HTTPException, Path
 
 from models import schemas
 from sql import models
-from sql.crud import (
-    create_upper_weekly_timetable,
-    create_lower_weekly_timetable,
-    create_upper_week_day,
-    create_lower_week_day,
-    create_upper_day_subject,
-    create_lower_day_subject,
-    update_upper_weekly_timetable,
-    update_lower_weekly_timetable,
-    delete_upper_weekly_timetable,
-    delete_upper_daily_timetable,
-    delete_upper_day_subject,
-    delete_lower_weekly_timetable,
-    delete_lower_daily_timetable,
-    delete_lower_day_subject,
-    get_timetable_user_status,
-    get_timetable_by_id
+from crud.timetable_user import (
+    exists_timetable_user_relation,
+    have_user_enough_rights_in_timetable
 )
+from crud.timetable import get_timetable_by_id
 from controllers.db import get_db
-from controllers.user import get_current_user
 from controllers.week import (
-    check_days,
-    check_time,
-    check_week_and_subject_ids,
-    check_day_in_timetable,
-    check_subject_id_in_timetable,
-    append_subject_time
+    delete_subject_in_db,
+    exists_duplicate_ids,
+    exists_duplicate_days,
+    exists_weekly_timetable,
+    create_day_subject_in_db,
+    exists_daily_timetable_by_id,
+    create_daily_timetable_in_db,
+    delete_daily_timetable_in_db,
+    get_day_ids_in_updating_week,
+    create_weekly_timetable_in_db,
+    update_weekly_timetable_in_db,
+    delete_weekly_timetable_in_db,
+    exists_daily_timetable_by_name,
+    get_subject_ids_in_updating_week,
+    exists_subject_in_weekly_timetable,
+    exists_updating_day_ids_in_weekly_timetable,
+    exists_updating_subject_ids_in_weekly_timetable,
 )
-from controllers.timetable import check_timetable, get_valid_timetable
+from controllers.user import get_current_user
+from controllers.timetable import get_valid_timetable
+from message import (
+    WEEK_NOT_FOUND,
+    DUPLICATE_DAYS,
+    DUPLICATE_SUBJECTS,
+    DAY_ALREADY_EXISTS,
+    SUBJECT_HAS_BEEN_DELETED,
+    USER_DOESNT_HAVE_TIMETABLE,
+    UPDATING_DAY_IDS_NOT_EXISTS,
+    USER_DOESNT_HAVE_ENOUGH_RIGHTS,
+    SUBJECT_NOT_FOUND_IN_TIMETABLE,
+    UPDATING_SUBJECT_IDS_NOT_EXISTS,
+    WEEKLY_TIMETABLE_ALREADY_EXISTS,
+    DAILY_TIMETABLE_HAS_BEEN_DELETED,
+    WEEKLY_TIMETABLE_HAS_BEEN_DELETED,
+)
 
 
-router = APIRouter(
-    prefix="/timetable/week",
-    tags=["week"],
-    )
+router = APIRouter(prefix="/timetable/{timetable_id}", tags=["week"])
 
 
 @router.post(
-    path="/create_week",
+    path="/week",
+    summary="Создать недельное расписание",
     status_code=status.HTTP_201_CREATED,
-    response_model=schemas.TimetableOut,
-    summary="Create a weekly timetable",
-)
+    response_model=schemas.TimetableOut)
 async def create_weekly_timetable(
-    timetable_id: int,
     week_name: schemas.WeekName,
-    weekly_timetable: list[schemas.WeekCreate],
+    weekly_timetable: list[schemas.DayCreate],
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create weekly timetable"
-        )
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
-    if week_name == schemas.WeekName.UPPER and timetable.upper_week_items or \
-        week_name == schemas.WeekName.LOWER and timetable.lower_week_items:
+    if exists_weekly_timetable(db, week_name, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The weekly timetable already exists"
-        )
+            status_code=status.HTTP_409_CONFLICT,
+            detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
         
-    check_days([day_timetable.day for day_timetable in weekly_timetable])
+    if exists_duplicate_days([day.day for day in weekly_timetable]):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=DUPLICATE_DAYS)
 
-    for item in weekly_timetable:
-        item.subjects.sort(key=lambda value: value.start_time)
+    create_weekly_timetable_in_db(db, week_name, timetable_id, weekly_timetable)
     
-    for day_timetable in weekly_timetable:
-        start_time_list = [subject.start_time for subject in day_timetable.subjects]
-        end_time_list = [subject.end_time for subject in day_timetable.subjects]
-        check_time(start_time_list, end_time_list)
-
-    if week_name == schemas.WeekName.UPPER:
-        create_upper_weekly_timetable(db, timetable_id, weekly_timetable)
-    elif week_name == schemas.WeekName.LOWER:
-        create_lower_weekly_timetable(db, timetable_id, weekly_timetable)
-    
-    db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable, user.id)
+    timetable = get_timetable_by_id(db, timetable_id)
+    return get_valid_timetable(db, timetable, user.id)
 
 
 @router.post(
-    path="/create_day",
+    path="/day",
+    summary="Создать дневное расписание",
     status_code=status.HTTP_201_CREATED,
-    response_model=schemas.TimetableOut,
-    summary="Create daily timetable",
-)
+    response_model=schemas.TimetableOut)
 async def create_daily_timetable(
-    timetable_id: int,
     week_name: schemas.WeekName,
-    daily_timetable: schemas.WeekCreate,
+    daily_timetable: schemas.DayCreate,
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create daily timetable"
-        )
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
-    if week_name == schemas.WeekName.UPPER and timetable.upper_week_items:
-        week_days = [value.day for value in timetable.upper_week_items]
-    elif week_name == schemas.WeekName.LOWER and timetable.lower_week_items:
-        week_days = [value.day for value in timetable.lower_week_items]
-    else:
-        week_days = None   
-    if week_days and daily_timetable.day in week_days:
+    if exists_daily_timetable_by_name(
+        db, week_name, timetable_id, daily_timetable.day):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This day already exists in the transmitted timetable"
-        )
+            status_code=status.HTTP_409_CONFLICT,
+            detail=DAY_ALREADY_EXISTS)
 
-    daily_timetable.subjects.sort(key=lambda value: value.start_time)
-
-    start_time_list = [subject.start_time for subject in daily_timetable.subjects]
-    end_time_list = [subject.end_time for subject in daily_timetable.subjects]
-    check_time(start_time_list, end_time_list)
-
-    if week_name == schemas.WeekName.UPPER:
-        create_upper_week_day(db, timetable_id, daily_timetable)
-    elif week_name == schemas.WeekName.LOWER:
-        create_lower_week_day(db, timetable_id, daily_timetable)
+    create_daily_timetable_in_db(db, week_name, timetable_id, daily_timetable)
     
-    db_timetable = get_timetable_by_id(db, timetable_id)
-    return get_valid_timetable(db, db_timetable, user.id)
+    timetable = get_timetable_by_id(db, timetable_id)
+    return get_valid_timetable(db, timetable, user.id)
 
 
 @router.post(
-    path="/create_subject",
+    path=".day/{day_id}/subject",
+    summary="Добавить предмет в дневном расписании",
     status_code=status.HTTP_201_CREATED,
-    response_model=schemas.TimetableOut,
-    summary="Create a subject in the timetable",
-)
+    response_model=schemas.TimetableOut)
 async def create_subject_in_timetable(
-    timetable_id: int,
-    day_id: int,
     week_name: schemas.WeekName,
     daily_subject: schemas.DaySubjectsBase,
+    day_id: int = Path(gt=0),
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to create a subject in the timetable"
-        )
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
-    submitted_day = check_day_in_timetable(week_name, day_id, timetable)
+    if not exists_daily_timetable_by_id(db, week_name, timetable_id, day_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)  
 
-    submitted_day.subjects.sort(key=lambda value: value.start_time)  # type: ignore
-    start_time_list = [subject.start_time for subject in submitted_day.subjects]
-    end_time_list = [subject.end_time for subject in submitted_day.subjects]
-    append_subject_time(daily_subject, start_time_list, end_time_list)
-    check_time(start_time_list, end_time_list)
-
-    if week_name == schemas.WeekName.UPPER:
-        create_upper_day_subject(db, day_id, daily_subject)
-    elif week_name == schemas.WeekName.LOWER:
-        create_lower_day_subject(db, day_id, daily_subject)
+    create_day_subject_in_db(db, week_name, daily_subject, day_id)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
     return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.patch(
-    path="/update",
+    path="/week",
+    summary="Обновляет данные недельного расписания",
     status_code=status.HTTP_200_OK,
-    response_model=schemas.TimetableOut,
-    summary="Update weekly timetable",
-)
+    response_model=schemas.TimetableOut)
 async def update_weekly_timetable(
-    timetable_id: int,
     week_name: schemas.WeekName,
-    weekly_timetable: list[schemas.WeekUpdate],
+    weekly_timetable: list[schemas.DayUpdate],
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
-
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to update weekly timetable"
-        )
-
-    if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
-        week_name == schemas.WeekName.LOWER and not timetable.lower_week_items:
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The weekly timetable doesn't exists"
-        )
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    if week_name == schemas.WeekName.UPPER:
-        check_week_and_subject_ids(timetable.upper_week_items, weekly_timetable)
-    elif week_name == schemas.WeekName.LOWER:
-        check_week_and_subject_ids(timetable.lower_week_items, weekly_timetable)
- 
-    check_days([day_timetable.day for day_timetable in weekly_timetable])
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
 
-    for item in weekly_timetable:
-        item.subjects.sort(key=lambda value: value.start_time)
+    if not exists_weekly_timetable(db, week_name, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=WEEK_NOT_FOUND)
 
-    for day_timetable in weekly_timetable:
-        start_time_list = [subject.start_time for subject in day_timetable.subjects]
-        end_time_list = [subject.end_time for subject in day_timetable.subjects]
-        check_time(start_time_list, end_time_list)
+    day_ids = get_day_ids_in_updating_week(weekly_timetable)
+    if exists_duplicate_ids(day_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=DUPLICATE_DAYS)
 
-    if week_name == schemas.WeekName.UPPER:
-        update_upper_weekly_timetable(db, weekly_timetable)
-    elif week_name == schemas.WeekName.LOWER:
-        update_lower_weekly_timetable(db, weekly_timetable)
+    if not exists_updating_day_ids_in_weekly_timetable(
+        db, week_name, timetable_id, day_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=UPDATING_DAY_IDS_NOT_EXISTS)
+    
+    subject_ids = get_subject_ids_in_updating_week(weekly_timetable)
+    if exists_duplicate_ids(subject_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=DUPLICATE_SUBJECTS)        
+
+    if not exists_updating_subject_ids_in_weekly_timetable(
+        db, week_name, weekly_timetable):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=UPDATING_SUBJECT_IDS_NOT_EXISTS)
+
+    update_weekly_timetable_in_db(db, week_name, weekly_timetable)
     
     db_timetable = get_timetable_by_id(db, timetable_id)
     return get_valid_timetable(db, db_timetable, user.id)
 
 
 @router.delete(
-    path="/delete_week",
+    path="/week",
+    summary="Удалить недельное расписание",
     status_code=status.HTTP_200_OK,
-    summary="Delete weekly timetable",
-)
+    response_description=WEEKLY_TIMETABLE_HAS_BEEN_DELETED)
 async def delete_weekly_timetable(
-    timetable_id: int,
     week_name: schemas.WeekName,
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
-
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to delete weekly timetable"
-        )
-
-    if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
-        week_name == schemas.WeekName.LOWER and not timetable.lower_week_items:
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The weekly timetable doesn't exists"
-        )
+            detail=USER_DOESNT_HAVE_TIMETABLE)
+
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
+
+    if not exists_weekly_timetable(db, week_name, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
     
-    if week_name == schemas.WeekName.UPPER:
-        delete_upper_weekly_timetable(db, timetable_id)
-    elif week_name  == schemas.WeekName.LOWER:
-        delete_lower_weekly_timetable(db, timetable_id)
+    delete_weekly_timetable_in_db(db, week_name, timetable_id)
 
 
 @router.delete(
-    path="/delete_day",
+    path="/day/{day_id}",
+    summary="Удаляет дневное расписание",
     status_code=status.HTTP_200_OK,
-    summary="Delete daily timetable",
-)
+    response_description=DAILY_TIMETABLE_HAS_BEEN_DELETED)
 async def delete_daily_timetable(
-    timetable_id: int,
-    day_id: int,
     week_name: schemas.WeekName,
+    day_id: int = Path(gt=0),
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
-
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to delete daily timetable"
-        )
-
-    if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
-        week_name == schemas.WeekName.LOWER and not timetable.lower_week_items:
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The weekly timetable doesn't exists"
-        )
-    
-    check_day_in_timetable(week_name, day_id, timetable)
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    if week_name == schemas.WeekName.UPPER:
-        delete_upper_daily_timetable(db, day_id)
-    elif week_name  == schemas.WeekName.LOWER:
-        delete_lower_daily_timetable(db, day_id)
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
+
+    if not exists_weekly_timetable(db, week_name, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
+    
+    if not exists_daily_timetable_by_id(db, week_name, timetable_id, day_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=USER_DOESNT_HAVE_TIMETABLE)
+
+    delete_daily_timetable_in_db(db, week_name, day_id)
         
 
 @router.delete(
-    path="/delete_subject",
+    path="/subject/{subject_id}",
+    summary="Удалить предмет в расписании",
     status_code=status.HTTP_200_OK,
-    summary="Delete subject in the timetable",
-)
+    response_description=SUBJECT_HAS_BEEN_DELETED)
 async def delete_subject_in_timetable(
-    timetable_id: int,
-    subject_id: int,
     week_name: schemas.WeekName,
+    subject_id: int = Path(gt=0),
+    timetable_id: int = Path(gt=0),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    timetable = check_timetable(user, timetable_id)
-
-    timetable_user_status = get_timetable_user_status(db, user.id, timetable_id)
-    if timetable_user_status != schemas.TimetableUserStatuses.elder:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"The user doesn't have access rights to delete subject in the timetable"
-        )
-
-    if week_name == schemas.WeekName.UPPER and not timetable.upper_week_items or \
-        week_name == schemas.WeekName.LOWER and not timetable.lower_week_items:
+    if not exists_timetable_user_relation(db, user.id, timetable_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="The weekly timetable doesn't exists"
-        )
-    
-    check_subject_id_in_timetable(week_name, subject_id, timetable)
+            detail=USER_DOESNT_HAVE_TIMETABLE)
 
-    if week_name == schemas.WeekName.UPPER:
-        delete_upper_day_subject(db, subject_id)
-    elif week_name  == schemas.WeekName.LOWER:
-        delete_lower_day_subject(db, subject_id)
+    if not have_user_enough_rights_in_timetable(db, user.id, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=USER_DOESNT_HAVE_ENOUGH_RIGHTS)
+
+    if not exists_weekly_timetable(db, week_name, timetable_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
+    
+    if not exists_subject_in_weekly_timetable(
+        db, week_name, timetable_id, subject_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=SUBJECT_NOT_FOUND_IN_TIMETABLE)
+
+    delete_subject_in_db(db, week_name, subject_id)

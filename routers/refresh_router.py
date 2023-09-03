@@ -1,18 +1,19 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException, status
 
 from sql.models import User
 from models.schemas import Token
-from controllers.db import get_db
-from controllers.user import (
-    get_current_user,
-    check_user_white_ip,
-    check_user_refresh_token,
-    is_user_refresh_tokens_limit_exceeded
+from crud.token import (
+    has_user_refresh_token,
+    delete_user_refresh_token,
+    create_user_refresh_token,
 )
+from crud.ip import has_user_white_ip
+from controllers.db import get_db
 from controllers.oauth2 import oauth2_scheme
+from controllers.user import get_current_user
 from controllers.token import create_access_and_refresh_tokens
-from crud.token import delete_user_refresh_token, create_user_refresh_token
+from message import UNKNOWN_REFRESH_TOKEN, UNKNOWN_USER_WHITE_IP
 
 
 router = APIRouter()
@@ -26,13 +27,17 @@ async def refresh_tokens(
     user: User = Depends(get_current_user),
 ):
     white_ip = request.client.host  # type: ignore
-    check_user_white_ip(white_ip, user.white_list_ip)  # type: ignore
+    if not has_user_white_ip(db, user.id, white_ip):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=UNKNOWN_USER_WHITE_IP)
 
-    check_user_refresh_token(token, user.refresh_tokens)  # type: ignore
+    if not has_user_refresh_token(db, user.id, token):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=UNKNOWN_REFRESH_TOKEN)
     
-    if not is_user_refresh_tokens_limit_exceeded(
-        db, len(user.refresh_tokens), user.id):  # type: ignore
-        delete_user_refresh_token(db, user.id, token)
+    delete_user_refresh_token(db, user.id, token)
 
     token_data = {"sub": user.email}
     tokens = create_access_and_refresh_tokens(token_data)

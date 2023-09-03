@@ -3,11 +3,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 
 from models.schemas import Token
-from crud.ip import create_user_white_ip
-from crud.token import create_user_refresh_token
 from controllers.db import get_db
+from controllers.user import (
+    authenticate_user,
+    is_user_refresh_tokens_limit_exceeded
+)
 from controllers.token import create_access_and_refresh_tokens
-from controllers.user import authenticate_user, is_user_refresh_tokens_limit_exceeded
+from crud.ip import create_user_white_ip, has_user_white_ip
+from crud.token import create_user_refresh_token, delete_all_user_refresh_token
 
 
 router = APIRouter()
@@ -26,7 +29,8 @@ async def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"})
 
-    is_user_refresh_tokens_limit_exceeded(db, len(user.refresh_tokens), user.id)  # type: ignore
+    if is_user_refresh_tokens_limit_exceeded(db, user.id):
+        delete_all_user_refresh_token(db, user.id)
 
     token_data = {"sub": user.email}
     tokens = create_access_and_refresh_tokens(token_data)
@@ -34,8 +38,7 @@ async def login_for_access_token(
     create_user_refresh_token(db, user.id, tokens.refresh_token)
     
     white_ip = request.client.host  # type: ignore
-    user_white_list_ip = [value.white_ip for value in user.white_list_ip]  # type: ignore
-    if white_ip not in user_white_list_ip:
+    if not has_user_white_ip(db, user.id, white_ip):
         create_user_white_ip(db, user.id, white_ip)
     
     return tokens

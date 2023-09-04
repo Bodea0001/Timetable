@@ -4,7 +4,7 @@ from fastapi import Form, HTTPException, status
 from pydantic import BaseModel, EmailStr, validator
 from fastapi.security import OAuth2PasswordRequestForm
 
-from message import INVALID_ID
+from message import INVALID_ID, INVALID_NAMING
 
 
 class AccessToken(BaseModel):
@@ -78,7 +78,7 @@ class TaskCreate(TaskBase):
     id_users: list[int]
 
     @validator("id_users", pre=True, always=True)
-    def capitalize_attributes(cls, attribute: list[int]):
+    def check_users_id(cls, attribute: list[int]):
         for num in attribute:
             if num <=0:
                 raise HTTPException(
@@ -87,9 +87,25 @@ class TaskCreate(TaskBase):
 
         return attribute
 
+    @validator("description", pre=True, always=True)
+    def validate_description(cls, attribute: str):
+        if not attribute or not attribute.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_NAMING)
+        return attribute.strip()
+    
+
 
 class TaskUpdate(TaskBase):
-    pass
+    
+    @validator("description", pre=True, always=True)
+    def validate_description(cls, attribute: str):
+        if not attribute or not attribute.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_NAMING)
+        return attribute.strip()
 
     
 # Task Out Model inherit from TaskBase
@@ -172,6 +188,15 @@ class DaySubjects(DaySubjectsBase):
 class DayCreate(WeekBase):
     subjects: list[DaySubjectsBase]
 
+    @validator("subjects", pre=True, always=True)
+    def validate_subjects(cls, attribute: list[DaySubjectsBase]):
+        for subject in attribute:
+            if not subject.subject or not subject.subject.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=INVALID_NAMING)
+        return attribute
+
 
 class DayUpdate(BaseModel):
     id: int
@@ -183,6 +208,15 @@ class DayUpdate(BaseModel):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=INVALID_ID)
+        return attribute
+
+    @validator("subjects", pre=True, always=True)
+    def validate_subjects(cls, attribute: list[DaySubjects]):
+        for subject in attribute:
+            if not subject.subject or not subject.subject.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=INVALID_NAMING)
         return attribute
 
 
@@ -250,6 +284,14 @@ class TimetableBase(BaseModel):
 class TimetableCreate(TimetableBase):
     id_university: int | None
     id_specialization: int | None
+
+    @validator("name", pre=True, always=True)
+    def validate_name(cls, attribute: str):
+        if not attribute or not attribute.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_NAMING)
+        return attribute.strip()
 
 
 class TimetableOutLite(TimetableBase):
@@ -319,6 +361,10 @@ class UserUpdate(BaseModel):
 
     @validator("first_name", "last_name", pre=True, always=True)
     def capitalize_attributes(cls, attribute: str):
+        if not attribute or not attribute.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=INVALID_NAMING)
         return attribute.capitalize()
 
 
@@ -340,6 +386,14 @@ class UserOut(UserBase):
 
 class UserCreate(UserBase):
     password: str
+
+    @validator("email", "first_name", "last_name", "password", pre=True, always=True)
+    def validate_description(cls, attribute: str):
+        if not attribute or not attribute.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_NAMING)
+        return attribute.strip()
 
 
 class User(UserBase):

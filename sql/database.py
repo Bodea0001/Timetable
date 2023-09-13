@@ -12,6 +12,6 @@ DB_HOST = os.environ['DB_HOST']
 POSTGRESQL_CONFIG = f"{DATABASE}+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 
-engine = create_engine(POSTGRESQL_CONFIG, echo=True, future=True)
+engine = create_engine(POSTGRESQL_CONFIG, echo=False, future=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

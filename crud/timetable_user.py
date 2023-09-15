@@ -55,9 +55,11 @@ def get_users_in_timetable(
         db: Session,timetable_id: int | Column[Integer]) -> list[models.User]:
     """Отдаёт почту, фамилию и имя пользователей в расписании из БД 
     по ID этого расписания"""
-    return  db.query(models.User).join(
-        models.TimetableUser, 
+    subquery =  db.query(models.TimetableUser.id_user).filter(
         models.TimetableUser.id_timetable == timetable_id).all()
+    subquery = [user_id[0] for user_id in subquery]
+
+    return db.query(models.User).filter(models.User.id.in_(subquery)).all()
 
 
 def exists_timetable_user_relation(

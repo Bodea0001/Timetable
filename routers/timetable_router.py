@@ -99,7 +99,7 @@ async def find_timetables(
 @router.post(
     path="/create",
     summary="Создаёт новое расписание",
-    response_model=schemas.TimetableOutLite,
+    response_model=schemas.TimetableOut,
     status_code=status.HTTP_201_CREATED)
 async def create_new_timetable(
     form_data: schemas.TimetableRequestForm = Depends(),
@@ -113,19 +113,19 @@ async def create_new_timetable(
 
     if exists_timetable_with_user_id_and_name(db, form_data.name, user.id):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_OF_TIMETABLE_NAME)
 
     timetable_data = validate_timetable_data_to_create_or_update(db, form_data)
         
     if exists_timetable_with_timetable_data(db, timetable_data):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_TIMETABLE)
 
     timetable = create_timetable_for_user(db, timetable_data, user.id)
 
-    return get_valid_timetable_lite(db, timetable)
+    return get_valid_timetable(db, timetable, user.id)
 
 
 @router.patch(
@@ -147,14 +147,14 @@ async def update_user_timetable(
     if exists_another_user_timetables_with_name(
         db, form_data.name, user.id, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_OF_TIMETABLE_NAME)
 
     timetable_data = validate_timetable_data_to_create_or_update(db, form_data)
         
     if exists_timetable_with_timetable_data(db, timetable_data):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_TIMETABLE)
 
     timetable = update_timetable(db, timetable_id, timetable_data)

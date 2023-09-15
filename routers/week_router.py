@@ -123,7 +123,7 @@ async def create_daily_timetable(
 
 
 @router.post(
-    path=".day/{day_id}/subject",
+    path="/day/{day_id}/subject",
     summary="Добавить предмет в дневном расписании",
     status_code=status.HTTP_201_CREATED,
     response_model=schemas.TimetableOut)
@@ -180,13 +180,13 @@ async def update_weekly_timetable(
 
     if not exists_weekly_timetable(db, week_name, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=WEEK_NOT_FOUND)
 
     day_ids = get_day_ids_in_updating_week(weekly_timetable)
     if exists_duplicate_ids(day_ids):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_DAYS)
 
     if not exists_updating_day_ids_in_weekly_timetable(
@@ -198,7 +198,7 @@ async def update_weekly_timetable(
     subject_ids = get_subject_ids_in_updating_week(weekly_timetable)
     if exists_duplicate_ids(subject_ids):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=DUPLICATE_SUBJECTS)        
 
     if not exists_updating_subject_ids_in_weekly_timetable(
@@ -236,7 +236,7 @@ async def delete_weekly_timetable(
 
     if not exists_weekly_timetable(db, week_name, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
     
     delete_weekly_timetable_in_db(db, week_name, timetable_id)
@@ -266,7 +266,7 @@ async def delete_daily_timetable(
 
     if not exists_weekly_timetable(db, week_name, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
     
     if not exists_daily_timetable_by_id(db, week_name, timetable_id, day_id):
@@ -301,7 +301,7 @@ async def delete_subject_in_timetable(
 
     if not exists_weekly_timetable(db, week_name, timetable_id):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=WEEKLY_TIMETABLE_ALREADY_EXISTS)
     
     if not exists_subject_in_weekly_timetable(

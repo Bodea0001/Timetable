@@ -7,16 +7,16 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_USER=user
       - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_DB=timetable
     volumes:
       - pgdbdata:/var/lib/postgresql/data/
 
   app:
     container_name: app
     build: .
-    command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    command: bash -c "python3.11 sql/models.py createdb && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - .:/app
     ports:
@@ -25,12 +25,11 @@ services:
       - db
     restart: always
     environment:
-      - DATABASE=${DATABASE} # "postgresql"
-      - DB_USER=${DB_USER}
+      - DATABASE=postgresql
+      - DB_USER=user
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME} # "timetable"
-      - DB_HOST=${DB_HOST} # "db"
-      - DB_URL=${DB_URL} # DB_URL=$DATABASE+psycopg2://$DB_USER:$DB_PASSWORD@$DB_HOST/$DB_NAME
+      - DB_NAME=timetable
+      - DB_HOST=db
       - EMAIL=${EMAIL} # *@mail.ru
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - PASSWORD_SALT=${PASSWORD_SALT} # openssl rand -hex 32
